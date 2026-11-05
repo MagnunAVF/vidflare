@@ -264,7 +264,7 @@ Nine routes cover the MVP; every page reads through TanStack Query hooks wrappin
 
 ## Milestones
 
-The MVP ships in four two-week phases, each ending with a demo on the staging environment, leading to a public beta at the end of week 8.
+The MVP ships in four two-week phases, each ending with a demo on the stage environment, leading to a public beta at the end of week 8.
 
 | Phase | Weeks | Deliverables |
 | --- | --- | --- |
@@ -288,7 +288,7 @@ gantt
 
 **Exit criteria per phase**
 
-- [ ] Foundation: a user can sign up and log in on a staging URL; CI deploys a preview per PR; a test error and its trace show up in Sentry for staging.
+- [ ] Foundation: a user can sign up and log in on a stage URL; CI deploys a preview per PR; a test error and its trace show up in Sentry for stage.
 - [ ] Upload and watch: a 5-minute video uploads, turns `ready` via webhook, and plays on the watch page.
 - [ ] Social: likes, comments, views and subscriptions work and counters stay correct after a DO flush.
 - [ ] Launch prep: E2E suite green, Sentry alerts and dashboards in place, source maps resolving, production deployed behind your domain.
@@ -320,7 +320,7 @@ import * as Sentry from '@sentry/cloudflare'
 
 export const sentryOptions = (env: Env) => ({
   dsn: env.SENTRY_DSN,
-  environment: env.ENVIRONMENT,              // 'staging' | 'production'
+  environment: env.ENVIRONMENT,              // 'stage' | 'production'
   release: env.CF_VERSION_METADATA.id,       // ties errors to a Worker version
   tracesSampleRate: env.ENVIRONMENT === 'production' ? 0.2 : 1.0,
   enableLogs: true,
@@ -403,12 +403,12 @@ Sentry.init({
 
 - Unit and route tests with Vitest in the Workers runtime (`@cloudflare/vitest-pool-workers`), using local D1, KV and Durable Objects.
 - Mock the Stream API in tests; replay recorded webhook payloads to test the queue consumer.
-- Playwright end-to-end: sign up → upload a short sample video → watch → like → comment, run against a staging Worker.
+- Playwright end-to-end: sign up → upload a short sample video → watch → like → comment, run against a stage Worker.
 
 **Environments and deployment**
 
 - `wrangler dev` / `vite dev` locally with local bindings; `remote: true` only for Stream calls.
-- Two Cloudflare environments: `staging` and `production`, each with its own D1, KV, Queue and Stream webhook secret.
+- Two Cloudflare environments: `stage` and `production`, each with its own D1, KV, Queue and Stream webhook secret.
 - GitHub Actions: typecheck + lint + tests on every PR, `wrangler versions upload` for a preview URL, `wrangler d1 migrations apply --remote` then `wrangler deploy` on merge to main.
 - Alerting and dashboards run in Sentry (see Observability with Sentry); Workers Logs stays on as a fallback.
 
