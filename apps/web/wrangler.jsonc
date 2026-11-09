@@ -2,8 +2,12 @@
  * For more details on how to configure Wrangler, refer to:
  * https://developers.cloudflare.com/workers/wrangler/configuration/
  *
- * Top-level bindings are what `vite dev` and tests use: Miniflare simulates them
- * locally under .wrangler/state. stage/production get their own resources in `env`.
+ * Top-level config is the local environment: `vite dev` and tests use it, and Miniflare
+ * simulates its bindings under .wrangler/state. stage and production live in `env` with
+ * their own resources (same account, names suffixed per env); always deploy with --env.
+ *
+ * Bindings, vars and secrets are not inherited by `env` entries, so each env repeats them.
+ * Keep the three blocks in sync. Resource ids come from scripts/setup-cloudflare.sh.
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
@@ -15,6 +19,15 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"],
   },
+  // Append a new tag for every new Durable Object class. Never edit or reuse a tag.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["VideoStats"] }],
+  "observability": {
+    "enabled": true,
+  },
+  "upload_source_maps": true,
+
+  "vars": { "ENVIRONMENT": "local" },
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "d1_databases": [
     {
       "binding": "DB",
@@ -31,10 +44,8 @@
   "durable_objects": {
     "bindings": [{ "name": "VIDEO_STATS", "class_name": "VideoStats" }],
   },
-  // Append a new tag for every new Durable Object class. Never edit or reuse a tag.
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["VideoStats"] }],
-  // Set with `wrangler secret put` per environment; locally from .dev.vars (see .dev.vars.example).
-  // Listing them here types them in Env and warns in dev when one is missing.
+  // Set with `wrangler secret put --env <env>`; locally from .dev.vars (see .dev.vars.example).
+  // Listing them types them in Env and warns when one is missing.
   "secrets": {
     "required": [
       "STREAM_ACCOUNT_ID",
@@ -45,8 +56,76 @@
       "SENTRY_DSN",
     ],
   },
-  "observability": {
-    "enabled": true,
+
+  "env": {
+    // Worker: vidflare-stage
+    "stage": {
+      "vars": { "ENVIRONMENT": "stage" },
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "vidflare-db-stage",
+          "database_id": "<stage D1 id from scripts/setup-cloudflare.sh>",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "kv_namespaces": [
+        { "binding": "CACHE", "id": "<stage KV id from scripts/setup-cloudflare.sh>" },
+      ],
+      "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "vidflare-media-stage" }],
+      "queues": {
+        "producers": [{ "binding": "EVENTS", "queue": "stream-events-stage" }],
+        "consumers": [{ "queue": "stream-events-stage", "max_batch_size": 10 }],
+      },
+      "durable_objects": {
+        "bindings": [{ "name": "VIDEO_STATS", "class_name": "VideoStats" }],
+      },
+      "secrets": {
+        "required": [
+          "STREAM_ACCOUNT_ID",
+          "STREAM_API_TOKEN",
+          "STREAM_WEBHOOK_SECRET",
+          "TURNSTILE_SECRET",
+          "AUTH_SECRET",
+          "SENTRY_DSN",
+        ],
+      },
+    },
+
+    // Worker: vidflare-production
+    "production": {
+      "vars": { "ENVIRONMENT": "production" },
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "vidflare-db-production",
+          "database_id": "<production D1 id from scripts/setup-cloudflare.sh>",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "kv_namespaces": [
+        { "binding": "CACHE", "id": "<production KV id from scripts/setup-cloudflare.sh>" },
+      ],
+      "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "vidflare-media-production" }],
+      "queues": {
+        "producers": [{ "binding": "EVENTS", "queue": "stream-events-production" }],
+        "consumers": [{ "queue": "stream-events-production", "max_batch_size": 10 }],
+      },
+      "durable_objects": {
+        "bindings": [{ "name": "VIDEO_STATS", "class_name": "VideoStats" }],
+      },
+      "secrets": {
+        "required": [
+          "STREAM_ACCOUNT_ID",
+          "STREAM_API_TOKEN",
+          "STREAM_WEBHOOK_SECRET",
+          "TURNSTILE_SECRET",
+          "AUTH_SECRET",
+          "SENTRY_DSN",
+        ],
+      },
+    },
   },
-  "upload_source_maps": true,
 }

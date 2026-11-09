@@ -80,7 +80,7 @@ vidflare/
 
 1. `pnpm create cloudflare@latest web --framework=react` (Vite + Workers template), then add `hono`, `drizzle-orm`, `zod`, `@hono/zod-validator`.
 2. In `vite.config.ts` add `cloudflare()` from `@cloudflare/vite-plugin` next to `react()`.
-3. Create resources: `wrangler d1 create vidflare-db`, `wrangler kv namespace create CACHE`, `wrangler r2 bucket create vidflare-media`, `wrangler queues create stream-events`.
+3. Create resources per environment (one account, names suffixed with the env): `wrangler d1 create vidflare-db-<env>`, `wrangler kv namespace create CACHE-<env>`, `wrangler r2 bucket create vidflare-media-<env>`, `wrangler queues create stream-events-<env>`, for `stage` and `production` (`scripts/setup-cloudflare.sh` does this). Locally the unsuffixed names are simulated by Miniflare.
 4. Enable Stream in the dashboard; create an API token with Stream:Edit; store `STREAM_ACCOUNT_ID`, `STREAM_API_TOKEN`, `STREAM_WEBHOOK_SECRET`, `TURNSTILE_SECRET`, `AUTH_SECRET` with `wrangler secret put`.
 5. Configure the Stream webhook URL to `https://<domain>/api/webhooks/stream`.
 6. Run `wrangler types` to generate the `Env` type used by `new Hono<{ Bindings: Env }>()`.
@@ -106,6 +106,8 @@ vidflare/
   "observability": { "enabled": true }
 }
 ```
+
+The top level above is the local environment. `env.stage` and `env.production` repeat every binding, `vars` (`ENVIRONMENT`), `version_metadata` (`CF_VERSION_METADATA`) and `secrets` with their own suffixed resources, since bindings aren't inherited. With the Vite plugin the environment is picked at build time (`CLOUDFLARE_ENV=stage vite build`, then `wrangler deploy`), not with `wrangler deploy --env`.
 
 ## Data model (D1)
 
