@@ -29,7 +29,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 
 **Data model**
 - [x] Drizzle schema: `users`, `sessions`, `channels`, `videos`, `likes`, `comments`, `subscriptions`
-- [ ] Indexes: home feed, channel videos, comments, `subscriptions (channel_id)`
+- [x] Indexes: home feed, channel videos, comments, `subscriptions (channel_id)`
 - [ ] Initial migration generated and applied locally
 
 **API skeleton and auth**

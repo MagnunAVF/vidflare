@@ -1,6 +1,6 @@
 import { VIDEO_STATUSES, VIDEO_VISIBILITIES } from '@vidflare/shared'
-import { sql } from 'drizzle-orm'
-import { check, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { desc, sql } from 'drizzle-orm'
+import { check, index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 // Source of truth for D1 migrations (drizzle-kit generate → migrations/).
 // IDs are UUIDv7/ULID strings generated in the Worker; timestamps are integer epoch ms.
@@ -61,6 +61,9 @@ export const videos = sqliteTable(
   (t) => [
     check('videos_status_check', sql`${t.status} in (${inList(VIDEO_STATUSES)})`),
     check('videos_visibility_check', sql`${t.visibility} in (${inList(VIDEO_VISIBILITIES)})`),
+    // Feeds paginate on (published_at, id), so id is the trailing tie-breaker.
+    index('videos_home_feed_idx').on(t.status, t.visibility, desc(t.publishedAt), desc(t.id)),
+    index('videos_channel_idx').on(t.channelId, desc(t.publishedAt), desc(t.id)),
   ],
 )
 
@@ -80,18 +83,22 @@ export const likes = sqliteTable(
 )
 
 // Flat comments (replies are post-MVP). Deletes are soft: deleted_at is set.
-export const comments = sqliteTable('comments', {
-  id: text('id').primaryKey(),
-  videoId: text('video_id')
-    .notNull()
-    .references(() => videos.id, { onDelete: 'cascade' }),
-  userId: text('user_id')
-    .notNull()
-    .references(() => users.id, { onDelete: 'cascade' }),
-  body: text('body').notNull(),
-  createdAt: integer('created_at').notNull(),
-  deletedAt: integer('deleted_at'),
-})
+export const comments = sqliteTable(
+  'comments',
+  {
+    id: text('id').primaryKey(),
+    videoId: text('video_id')
+      .notNull()
+      .references(() => videos.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    body: text('body').notNull(),
+    createdAt: integer('created_at').notNull(),
+    deletedAt: integer('deleted_at'),
+  },
+  (t) => [index('comments_video_idx').on(t.videoId, desc(t.createdAt), desc(t.id))],
+)
 
 export const subscriptions = sqliteTable(
   'subscriptions',
@@ -104,5 +111,9 @@ export const subscriptions = sqliteTable(
       .references(() => channels.id, { onDelete: 'cascade' }),
     createdAt: integer('created_at').notNull(),
   },
-  (t) => [primaryKey({ columns: [t.subscriberId, t.channelId] })],
+  (t) => [
+    primaryKey({ columns: [t.subscriberId, t.channelId] }),
+    // The PK covers "my subscriptions"; this covers "who subscribes to this channel".
+    index('subscriptions_channel_idx').on(t.channelId),
+  ],
 )
