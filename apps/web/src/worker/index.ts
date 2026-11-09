@@ -4,6 +4,7 @@ import { notFound, onError } from './lib/errors'
 import { requestContext } from './middleware/request-context'
 import { sessionLoader } from './middleware/session'
 import { auth } from './routes/auth'
+import { me } from './routes/me'
 import type { AppEnv } from './types'
 
 export { VideoStats } from './do/VideoStats'
@@ -20,6 +21,7 @@ const app = new Hono<AppEnv>()
   .notFound(notFound)
   .get('/health', (c) => c.json({ ok: true }))
   .route('/auth', auth)
+  .route('/me', me)
 
 export type AppType = typeof app
 

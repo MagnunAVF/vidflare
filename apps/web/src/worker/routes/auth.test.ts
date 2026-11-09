@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { getDb } from '../db/client'
 import { channels, sessions, users } from '../db/schema'
-import { mockTurnstile, postJson, signupBody } from '../test/helpers'
+import { verifyPassword } from '../lib/password'
+import { callApi, mockTurnstile, postJson, sessionCookie, signupBody } from '../test/helpers'
 
 const db = getDb(env.DB)
 
@@ -86,5 +87,89 @@ describe('POST /api/auth/signup', () => {
       issues: [{ path: 'handle' }],
     })
     expect(siteverify).not.toHaveBeenCalled()
+  })
+})
+
+// Signs a fresh user up and returns its credentials and session cookie.
+async function signedUp() {
+  mockTurnstile()
+  const body = signupBody()
+  const res = await postJson('/api/auth/signup', body)
+  vi.restoreAllMocks()
+  return { ...body, cookie: sessionCookie(res) }
+}
+
+describe('POST /api/auth/login', () => {
+  it('starts a new session for valid credentials', async () => {
+    const user = await signedUp()
+    const res = await postJson('/api/auth/login', {
+      email: user.email.toUpperCase(),
+      password: user.password,
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({
+      user: { email: user.email },
+      channel: { handle: user.handle },
+    })
+    const cookie = sessionCookie(res)
+    expect(cookie).toMatch(/^vf_session=/)
+    expect(cookie).not.toBe(user.cookie)
+  })
+
+  it('answers a wrong password and an unknown email identically', async () => {
+    const user = await signedUp()
+    const wrong = await postJson('/api/auth/login', { email: user.email, password: 'nope-nope' })
+    const unknown = await postJson('/api/auth/login', {
+      email: `nobody_${Date.now()}@example.com`,
+      password: user.password,
+    })
+    for (const res of [wrong, unknown]) {
+      expect(res.status).toBe(401)
+      expect(await res.json()).toMatchObject({ error: 'invalid_credentials' })
+      expect(res.headers.get('set-cookie')).toBeNull()
+    }
+  })
+})
+
+describe('GET /api/me', () => {
+  it('401s without a session', async () => {
+    const res = await callApi('/api/me')
+    expect(res.status).toBe(401)
+  })
+
+  it('returns the signed-in user and channel', async () => {
+    const user = await signedUp()
+    const res = await callApi('/api/me', { headers: { cookie: user.cookie } })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({
+      user: { email: user.email },
+      channel: { handle: user.handle, name: user.name, avatarKey: null },
+    })
+  })
+})
+
+describe('POST /api/auth/logout', () => {
+  it('ends the session and clears the cookie', async () => {
+    const user = await signedUp()
+    const res = await callApi('/api/auth/logout', {
+      method: 'POST',
+      headers: { cookie: user.cookie },
+    })
+    expect(res.status).toBe(204)
+    expect(res.headers.get('set-cookie')).toContain('vf_session=;')
+
+    const after = await callApi('/api/me', { headers: { cookie: user.cookie } })
+    expect(after.status).toBe(401)
+  })
+
+  it('401s without a session', async () => {
+    expect((await callApi('/api/auth/logout', { method: 'POST' })).status).toBe(401)
+  })
+})
+
+describe('verifyPassword', () => {
+  it('rejects malformed stored hashes', async () => {
+    expect(await verifyPassword('x', '')).toBe(false)
+    expect(await verifyPassword('x', 'bcrypt$10$abc$def')).toBe(false)
   })
 })
