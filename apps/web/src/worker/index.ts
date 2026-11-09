@@ -1,12 +1,23 @@
 import { Hono } from 'hono'
 
+import { notFound, onError } from './lib/errors'
+import { requestContext } from './middleware/request-context'
+import { sessionLoader } from './middleware/session'
 import type { AppEnv } from './types'
 
 export { VideoStats } from './do/VideoStats'
 
 // One chained expression: `typeof app` must carry every route for the typed client.
 // Breaking the chain silently drops routes from AppType.
-const app = new Hono<AppEnv>().basePath('/api').get('/health', (c) => c.json({ ok: true }))
+// Order: request id + logger → session loader → (per route) requireUser → validate.
+// onError/notFound turn every failure into `{ error, requestId }` JSON.
+const app = new Hono<AppEnv>()
+  .basePath('/api')
+  .use(requestContext)
+  .use(sessionLoader)
+  .onError(onError)
+  .notFound(notFound)
+  .get('/health', (c) => c.json({ ok: true }))
 
 export type AppType = typeof app
 
