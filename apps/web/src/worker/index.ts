@@ -1,16 +1,17 @@
+import { Hono } from 'hono'
+
+import type { AppEnv } from './types'
+
 export { VideoStats } from './do/VideoStats'
 
-export default {
-  fetch(request) {
-    const url = new URL(request.url)
+// One chained expression: `typeof app` must carry every route for the typed client.
+// Breaking the chain silently drops routes from AppType.
+const app = new Hono<AppEnv>().basePath('/api').get('/health', (c) => c.json({ ok: true }))
 
-    if (url.pathname.startsWith('/api/')) {
-      return Response.json({
-        name: 'Cloudflare',
-      })
-    }
-    return new Response(null, { status: 404 })
-  },
+export type AppType = typeof app
+
+export default {
+  fetch: app.fetch,
 
   // Consumer for `stream-events`. Nothing produces messages yet; the Stream webhook
   // handler and the real consumer land in Phase 2. Until then, fail loudly so no

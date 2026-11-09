@@ -33,7 +33,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] Initial migration generated and applied locally
 
 **API skeleton and auth**
-- [ ] Hono app under `/api` with chained routes and exported `AppType`
+- [x] Hono app under `/api` with chained routes and exported `AppType`
 - [ ] Middleware: request id + logger, JSON error handler, session loader, `requireUser`
 - [ ] Typed client `hc<AppType>` in `client/lib/api.ts`
 - [ ] Shared schemas for sign-up, login
