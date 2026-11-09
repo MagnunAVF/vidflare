@@ -36,7 +36,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] Hono app under `/api` with chained routes and exported `AppType`
 - [x] Middleware: request id + logger, JSON error handler, session loader, `requireUser`
 - [x] Typed client `hc<AppType>` in `client/lib/api.ts`
-- [ ] Shared schemas for sign-up, login
+- [x] Shared schemas for sign-up, login
 - [ ] `POST /api/auth/signup` (PBKDF2, user + channel + session in one `db.batch()`)
 - [ ] `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/me`
 - [x] Session cookie: HttpOnly, Secure, SameSite=Lax
