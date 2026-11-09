@@ -21,7 +21,7 @@ The single deployable: one Cloudflare Worker that serves the React SPA as static
 
 ## Secrets
 
-Runtime secrets (`wrangler secret put`, per environment): `STREAM_ACCOUNT_ID`, `STREAM_API_TOKEN`, `STREAM_WEBHOOK_SECRET`, `TURNSTILE_SECRET`, `AUTH_SECRET`, `SENTRY_DSN`. For local dev use `.dev.vars`, which stays gitignored.
+Runtime secrets (`wrangler secret put`, per environment): `STREAM_ACCOUNT_ID`, `STREAM_API_TOKEN`, `STREAM_WEBHOOK_SECRET`, `TURNSTILE_SECRET`, `AUTH_SECRET`, `SENTRY_DSN`. For local dev use `.dev.vars`, which stays gitignored. Remote resource, Stream token and secret setup steps are in [docs/CloudflareSetup.md](../../docs/CloudflareSetup.md); keep it in sync when resources or secrets change.
 
 ## Migrations
 
