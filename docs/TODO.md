@@ -10,7 +10,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] Add `hono`, `drizzle-orm`, `drizzle-kit`, `zod`, `@hono/zod-validator`
 - [x] `vite.config.ts` with `react()` + `cloudflare()` (`@cloudflare/vite-plugin`)
 - [x] TypeScript strict, ESLint, Prettier; root `typecheck`, `lint`, `test` scripts
-- [ ] Tailwind CSS + shadcn/ui
+- [x] Tailwind CSS + shadcn/ui
 - [ ] TanStack Router (file-based) + TanStack Query
 - [ ] `packages/shared` set up as `@vidflare/shared` (Zod only)
 
