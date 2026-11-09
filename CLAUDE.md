@@ -4,6 +4,8 @@ YouTube-style video platform running 100% on Cloudflare. Creators upload videos;
 
 The plan of record is [docs/Roadmap.md](docs/Roadmap.md). Read it before designing anything new; if a change conflicts with it, update the roadmap in the same change or ask first.
 
+Task progress is tracked in [docs/TODO.md](docs/TODO.md). Before starting work, pick the next open item there; when an item is done, tick it in the same change.
+
 ## Status
 
 Pre-code. The repo layout and commands below are the planned target from the roadmap; scaffold them as described, don't invent an alternative structure.
