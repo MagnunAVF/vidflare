@@ -45,7 +45,7 @@ One Worker serves both the React SPA (static assets) and the Hono API under `/ap
 | Images | R2 + Images | Avatars and custom thumbnails |
 | Bot protection | Turnstile | Sign-up, comment, upload |
 | Observability | Sentry (`@sentry/cloudflare`, `@sentry/react`, `@sentry/vite-plugin`) | Errors, tracing, logs, metrics, replays on error; see Observability with Sentry |
-| Testing | Vitest + `@cloudflare/vitest-pool-workers`, Playwright | Runs tests inside the Workers runtime |
+| Testing | Vitest + `@cloudflare/vitest-plugin`, Playwright | Runs tests inside the Workers runtime |
 | CI/CD | GitHub Actions + Wrangler | Preview per PR, deploy on merge, Sentry release + source map upload |
 
 ## Repository structure and setup
@@ -401,7 +401,7 @@ Sentry.init({
 
 **Testing**
 
-- Unit and route tests with Vitest in the Workers runtime (`@cloudflare/vitest-pool-workers`), using local D1, KV and Durable Objects.
+- Unit and route tests with Vitest in the Workers runtime (`@cloudflare/vitest-plugin`), using local D1, KV and Durable Objects.
 - Mock the Stream API in tests; replay recorded webhook payloads to test the queue consumer.
 - Playwright end-to-end: sign up → upload a short sample video → watch → like → comment, run against a stage Worker.
 

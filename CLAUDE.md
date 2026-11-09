@@ -23,7 +23,7 @@ packages/shared/     # Zod schemas + DTO types shared by client and worker → s
 
 ## Stack at a glance
 
-TypeScript (strict) · React + Vite + `@cloudflare/vite-plugin` · TanStack Router + Query · Tailwind + shadcn/ui · Hono on Workers · Zod · Drizzle ORM (D1) · Cloudflare Stream, D1, KV, R2, Queues, Durable Objects, Turnstile · Sentry · Vitest (`@cloudflare/vitest-pool-workers`) + Playwright · GitHub Actions + Wrangler.
+TypeScript (strict) · React + Vite + `@cloudflare/vite-plugin` · TanStack Router + Query · Tailwind + shadcn/ui · Hono on Workers · Zod · Drizzle ORM (D1) · Cloudflare Stream, D1, KV, R2, Queues, Durable Objects, Turnstile · Sentry · Vitest (`@cloudflare/vitest-plugin`) + Playwright · GitHub Actions + Wrangler.
 
 ## Project-wide rules
 

@@ -64,4 +64,4 @@ KV `CACHE`: home feed, channel pages and video detail (60 s). Any write that cha
 
 ## Testing
 
-Vitest with `@cloudflare/vitest-pool-workers`, against local D1/KV/DO. Mock the Stream API; replay recorded webhook payloads for the queue consumer. Cover status transitions, idempotency (repeat likes, redelivered queue messages) and ownership checks.
+Vitest with `@cloudflare/vitest-plugin`, against local D1/KV/DO. Mock the Stream API; replay recorded webhook payloads for the queue consumer. Cover status transitions, idempotency (repeat likes, redelivered queue messages) and ownership checks.
