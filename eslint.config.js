@@ -32,6 +32,12 @@ export default defineConfig([
     languageOptions: { globals: globals.browser },
   },
   {
+    // TanStack Router route modules export `Route` (not a component). The router plugin's
+    // autoCodeSplitting moves each route component into its own module, so Fast Refresh works.
+    files: ['apps/web/src/client/routes/**/*.tsx'],
+    rules: { 'react-refresh/only-export-components': 'off' },
+  },
+  {
     files: ['**/*.config.{js,ts}'],
     languageOptions: { globals: globals.node },
   },
