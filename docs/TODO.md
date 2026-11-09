@@ -11,7 +11,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] `vite.config.ts` with `react()` + `cloudflare()` (`@cloudflare/vite-plugin`)
 - [x] TypeScript strict, ESLint, Prettier; root `typecheck`, `lint`, `test` scripts
 - [x] Tailwind CSS + shadcn/ui
-- [ ] TanStack Router (file-based) + TanStack Query
+- [x] TanStack Router (file-based) + TanStack Query
 - [ ] `packages/shared` set up as `@vidflare/shared` (Zod only)
 
 **Local environment**
