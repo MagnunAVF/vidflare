@@ -33,6 +33,18 @@
   },
   // Append a new tag for every new Durable Object class. Never edit or reuse a tag.
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["VideoStats"] }],
+  // Set with `wrangler secret put` per environment; locally from .dev.vars (see .dev.vars.example).
+  // Listing them here types them in Env and warns in dev when one is missing.
+  "secrets": {
+    "required": [
+      "STREAM_ACCOUNT_ID",
+      "STREAM_API_TOKEN",
+      "STREAM_WEBHOOK_SECRET",
+      "TURNSTILE_SECRET",
+      "AUTH_SECRET",
+      "SENTRY_DSN",
+    ],
+  },
   "observability": {
     "enabled": true,
   },

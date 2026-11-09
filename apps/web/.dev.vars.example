@@ -1,0 +1,19 @@
+# Local runtime secrets for `pnpm dev` and tests.
+# Copy to .dev.vars (gitignored) and fill in:  cp .dev.vars.example .dev.vars
+# Never put production values here.
+
+# Cloudflare Stream: credentials of the *stage* account (Stream can't run locally).
+STREAM_ACCOUNT_ID=
+STREAM_API_TOKEN=
+# Any value works locally; it signs the replayed webhook payloads you send to /api/webhooks/stream.
+STREAM_WEBHOOK_SECRET=local-webhook-secret
+
+# Turnstile: Cloudflare's public test secret that always passes.
+# Use the stage secret instead to exercise a real challenge.
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+
+# Signs session data. Generate your own: openssl rand -hex 32
+AUTH_SECRET=
+
+# Leave empty to keep Sentry off locally, or use the stage DSN.
+SENTRY_DSN=
