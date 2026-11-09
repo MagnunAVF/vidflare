@@ -4,4 +4,5 @@ pnpm-lock.yaml
 **/.wrangler
 **/worker-configuration.d.ts
 **/*.gen.ts
+**/migrations
 *.md
