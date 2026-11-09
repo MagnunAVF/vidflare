@@ -62,15 +62,16 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 
 **Upload**
 - [ ] `services/stream.ts`: direct creator upload, delete, status lookup
-- [ ] `POST /api/videos/uploads` (row in `uploading`, Stream URL with `maxDurationSeconds` + `meta.videoId`, Turnstile)
+- [ ] `POST /api/videos/uploads` (row in `uploading`, Stream URL with `maxDurationSeconds` + `meta: { env, videoId }`, Turnstile)
 - [ ] `POST /api/videos/:id/uploaded` (`processing` only `WHERE status = 'uploading'`)
 - [ ] `/upload` page: `UploadDropzone` with tus-js-client, progress bar, metadata form
 - [ ] Poll status until `ready` / `error`
 
 **Webhook and queue**
-- [ ] `POST /api/webhooks/stream`: verify `Webhook-Signature` HMAC, enqueue, return 200
-- [ ] Queue consumer: set `ready`/`error`, `duration_s`, `thumbnail_url`, `published_at`; idempotent
-- [ ] Configure the Stream webhook URL per environment
+- [ ] `POST /api/webhooks/stream`: verify `Webhook-Signature` HMAC, route by `meta.env` (`production` → `EVENTS`, `stage` → `STAGE_EVENTS`, else warn + drop), return 200
+- [ ] `STAGE_EVENTS` producer on `stream-events-stage` in the production env only; `wrangler types`
+- [ ] Queue consumer: set `ready`/`error`, `duration_s`, `thumbnail_url`, `published_at`; idempotent; unknown `stream_uid` logged and acked
+- [ ] Point the account's Stream webhook URL at production; store the returned secret as production's `STREAM_WEBHOOK_SECRET`
 - [ ] Recorded webhook payloads as test fixtures
 
 **Watch and feeds**

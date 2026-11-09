@@ -34,11 +34,11 @@ Hono app on Cloudflare Workers. It also exports the queue consumer, the `schedul
 
 `uploading → processing → ready | error`
 
-1. `POST /videos/uploads`: insert row (`uploading`), create a Stream direct creator upload with `maxDurationSeconds` and `meta.videoId`, store `stream_uid`, return the one-time URL.
+1. `POST /videos/uploads`: insert row (`uploading`), create a Stream direct creator upload with `maxDurationSeconds` and `meta: { env: env.ENVIRONMENT, videoId }`, store `stream_uid`, return the one-time URL.
 2. `POST /videos/:id/uploaded`: set `processing` only from `uploading`.
-3. `POST /webhooks/stream`: verify the `Webhook-Signature` HMAC (`STREAM_WEBHOOK_SECRET`), enqueue to `EVENTS`, return 200 fast. No D1 work here. An invalid signature gets a `warn` log and the `webhook.signature_invalid` metric.
-4. Queue consumer: set `ready`/`error`, `duration_s`, `thumbnail_url`, `published_at`, then purge the home feed and channel KV keys. Must be idempotent, because messages can be redelivered.
-5. Nightly `scheduled` reconcile re-checks stuck videos against the Stream API, wrapped in `Sentry.withMonitor`.
+3. `POST /webhooks/stream`: verify the `Webhook-Signature` HMAC (`STREAM_WEBHOOK_SECRET`), then route by `meta.env` and return 200 fast: `production` goes to `EVENTS`, `stage` to `STAGE_EVENTS` (a producer bound only in production), and `local` or untagged gets a `warn` log and is dropped. No D1 work and no other logic here: the account's single Stream webhook lands on production, so this handler serves every environment. An invalid signature gets a `warn` log and the `webhook.signature_invalid` metric.
+4. Queue consumer: set `ready`/`error`, `duration_s`, `thumbnail_url`, `published_at`, then purge the home feed and channel KV keys. Look the video up by `stream_uid` in this environment's D1; an unknown uid is logged and acked. Must be idempotent, because messages can be redelivered.
+5. Nightly `scheduled` reconcile re-checks this environment's stuck videos against the Stream API, wrapped in `Sentry.withMonitor`. The Stream library is shared across environments, so only act on videos that have a row in this environment's D1, plus (stage only) delete stage-tagged Stream videos that have no row.
 
 ## VideoStats Durable Object
 

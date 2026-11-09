@@ -82,7 +82,7 @@ vidflare/
 2. In `vite.config.ts` add `cloudflare()` from `@cloudflare/vite-plugin` next to `react()`.
 3. Create resources per environment (one account, names suffixed with the env): `wrangler d1 create vidflare-db-<env>`, `wrangler kv namespace create CACHE-<env>`, `wrangler r2 bucket create vidflare-media-<env>`, `wrangler queues create stream-events-<env>`, for `stage` and `production` (`scripts/setup-cloudflare.sh` does this). Locally the unsuffixed names are simulated by Miniflare.
 4. Enable Stream in the dashboard; create an API token with Stream:Edit; store `STREAM_ACCOUNT_ID`, `STREAM_API_TOKEN`, `STREAM_WEBHOOK_SECRET`, `TURNSTILE_SECRET`, `AUTH_SECRET` with `wrangler secret put`.
-5. Configure the Stream webhook URL to `https://<domain>/api/webhooks/stream`.
+5. Configure the account's single Stream webhook URL to the production Worker, `https://<production domain>/api/webhooks/stream`, which routes events to each environment (see Stream across environments).
 6. Run `wrangler types` to generate the `Env` type used by `new Hono<{ Bindings: Env }>()`.
 
 **`wrangler.jsonc` (essentials)**
@@ -217,10 +217,33 @@ sequenceDiagram
 
 **Upload details**
 
-1. `POST /api/videos/uploads` inserts a `videos` row with status `uploading`, then calls Stream's direct creator upload API with `maxDurationSeconds` and `meta.videoId`, and stores the returned `uid`.
+1. `POST /api/videos/uploads` inserts a `videos` row with status `uploading`, then calls Stream's direct creator upload API with `maxDurationSeconds` and `meta: { env: ENVIRONMENT, videoId }`, and stores the returned `uid`.
 2. The browser uploads with tus-js-client to the returned URL, then calls `POST /api/videos/:id/uploaded`, which sets status to `processing` only `WHERE status = 'uploading'`. This way a webhook that arrives first and sets `ready` is never overwritten.
-3. `POST /api/webhooks/stream` verifies the `Webhook-Signature` HMAC, then enqueues the event; it returns 200 fast.
+3. `POST /api/webhooks/stream` verifies the `Webhook-Signature` HMAC, then enqueues the event to the queue of the environment in `meta.env` (see Stream across environments); it returns 200 fast.
 4. The queue consumer sets `ready` (or `error`), stores `duration_s` and `thumbnail_url`, sets `published_at`, and deletes the cached home feed and channel keys in KV.
+
+**Stream across environments**
+
+`stage` and `production` live in one Cloudflare account and share its Stream library. Stream allows a single webhook URL (and signing secret) per account, so events are told apart by a tag on each upload and routed by the production Worker:
+
+```mermaid
+flowchart LR
+    S[Stream library<br/>shared by all envs] -->|single account webhook| P[vidflare-production<br/>POST /api/webhooks/stream]
+    P -->|meta.env = production| QP[stream-events-production]
+    P -->|meta.env = stage| QS[stream-events-stage]
+    P -->|meta.env = local or missing| X[warn log, 200, dropped]
+    QP --> CP[production consumer<br/>prod D1 / KV]
+    QS --> CS[stage consumer<br/>stage D1 / KV]
+```
+
+- **Tag every upload.** Direct uploads set `meta.env` to the creating Worker's `ENVIRONMENT` (`local`, `stage` or `production`) next to `meta.videoId`.
+- **One webhook, on production.** The account webhook points at `https://<production domain>/api/webhooks/stream`. Only production needs the real `STREAM_WEBHOOK_SECRET`; stage and local use their own value just for replayed payloads.
+- **Route, don't process.** After the signature check, the handler sends the event to `EVENTS` when `meta.env` is `production`, or to `STAGE_EVENTS` when it is `stage`. `STAGE_EVENTS` is a second Queue producer bound only in the production config, on `stream-events-stage`. `local` or untagged events get a `warn` log and a 200, and nothing else. Keep the handler this small; all processing lives in the consumer.
+- **Each environment processes only its own events.** Each consumer looks the video up by `stream_uid` in its own D1. An unknown uid is logged and acked, so a mis-routed event can't touch another environment's data. Stage's consumer, D1, KV and anything it connects to are the same code as production's, with stage's own resources.
+- **Each environment owns only its own videos.** Deletes, the studio re-check and the nightly reconcile act on rows in that environment's D1 and never scan the whole library. Stage's reconcile also deletes stage-tagged Stream videos that no longer have a row. Each environment has its own `STREAM_API_TOKEN` (Stream:Edit on the same account) so it can be rotated alone.
+- **Local** uploads go to the shared library tagged `local` and receive no webhooks. Locally, replay recorded payloads or use the studio re-check.
+
+Trade-offs, accepted: stage gets no webhooks while production is down (the re-check and reconcile cover it). A change to the webhook handler only reaches stage once it is deployed to production, which is why the handler stays minimal and is tested with recorded payloads. Stage and local uploads count toward the same Stream storage and bill, so the upload length cap applies in every environment.
 
 **Playback**
 
@@ -410,7 +433,7 @@ Sentry.init({
 **Environments and deployment**
 
 - `wrangler dev` / `vite dev` locally with local bindings; `remote: true` only for Stream calls.
-- Two Cloudflare environments: `stage` and `production`, each with its own D1, KV, Queue and Stream webhook secret.
+- Two Cloudflare environments in one account: `stage` and `production`, each with its own D1, KV, R2 and Queue. They share the account's Stream library and its single webhook, which production routes by `meta.env` (see Stream across environments).
 - GitHub Actions: typecheck + lint + tests on every PR, `wrangler versions upload` for a preview URL, `wrangler d1 migrations apply --remote` then `wrangler deploy` on merge to main.
 - Alerting and dashboards run in Sentry (see Observability with Sentry); Workers Logs stays on as a fallback.
 

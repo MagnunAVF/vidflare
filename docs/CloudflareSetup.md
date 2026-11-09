@@ -46,7 +46,9 @@ pnpm exec wrangler d1 migrations apply vidflare-db-production --remote --env pro
    - Name it after the environment it's for (for example `vidflare-stage-stream`). Use one token per environment so either can be rotated alone.
 3. Note the account id (dashboard sidebar, or `wrangler whoami`) for `STREAM_ACCOUNT_ID`.
 
-> **Webhooks are per account.** Stream has a single webhook URL per Cloudflare account, so with both environments in one account only one Worker can receive Stream webhooks. This needs a decision before the Phase 2 webhook work. The options are: (a) use a separate account for stage's Stream (`STREAM_ACCOUNT_ID` is already a per-env secret, so only Stream moves); (b) send webhooks to production and let stage rely on polling and the reconcile job; or (c) send them to one Worker that forwards the other env's events using `meta.env` on the upload.
+Both environments share this account's Stream library, and `STREAM_ACCOUNT_ID` is the same value in both. Stream has a single webhook URL per account, so it points at production, which routes each event to the right environment's queue by the upload's `meta.env`. The design is in the roadmap under "Stream across environments".
+
+4. Register the webhook once the production Worker serves `/api/webhooks/stream` (Phase 2): set the account's webhook URL to `https://<production domain>/api/webhooks/stream`. Stream returns the signing secret; store it as production's `STREAM_WEBHOOK_SECRET`.
 
 ## 4. Secrets per environment
 
@@ -54,9 +56,9 @@ Set each one per environment. Piping a value keeps it out of your shell history;
 
 | Secret | Where the value comes from |
 | --- | --- |
-| `STREAM_ACCOUNT_ID` | Step 3 |
-| `STREAM_API_TOKEN` | Step 3 (that environment's token) |
-| `STREAM_WEBHOOK_SECRET` | Returned by Stream when the webhook URL is registered (Phase 2: "Configure the Stream webhook URL per environment"). Set it then. |
+| `STREAM_ACCOUNT_ID` | Step 3 (same account id in both environments) |
+| `STREAM_API_TOKEN` | Step 3 (that environment's own token) |
+| `STREAM_WEBHOOK_SECRET` | production: the secret Stream returns in step 3.4 (Phase 2). stage: any generated value (`openssl rand -hex 32`), since real webhooks never reach stage directly; it only signs replayed test payloads. |
 | `TURNSTILE_SECRET` | Dashboard → **Turnstile** → add a widget per environment with that environment's hostname(s) → secret key |
 | `AUTH_SECRET` | Generate: `openssl rand -hex 32 \| pnpm exec wrangler secret put AUTH_SECRET --env stage` (new value per environment) |
 | `SENTRY_DSN` | The Sentry project's DSN (Sentry task) |
