@@ -39,7 +39,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [ ] Shared schemas for sign-up, login
 - [ ] `POST /api/auth/signup` (PBKDF2, user + channel + session in one `db.batch()`)
 - [ ] `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/me`
-- [ ] Session cookie: HttpOnly, Secure, SameSite=Lax
+- [x] Session cookie: HttpOnly, Secure, SameSite=Lax
 - [ ] `/login` and `/signup` pages with `AuthForm`
 
 **CI/CD**
