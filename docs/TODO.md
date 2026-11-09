@@ -15,7 +15,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] `packages/shared` set up as `@vidflare/shared` (Zod only)
 
 **Local environment**
-- [ ] `vite dev` running the Worker with local D1, KV, R2, Queues and Durable Objects
+- [x] `vite dev` running the Worker with local D1, KV, R2, Queues and Durable Objects
 - [ ] `.dev.vars.example` committed; `.dev.vars` gitignored
 - [ ] Local D1 migrations + seed script (sample users, channels, videos)
 - [ ] Document which services point at `stage` locally (Stream, Turnstile) and how

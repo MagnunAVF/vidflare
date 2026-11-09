@@ -1,16 +1,38 @@
 /**
  * For more details on how to configure Wrangler, refer to:
  * https://developers.cloudflare.com/workers/wrangler/configuration/
+ *
+ * Top-level bindings are what `vite dev` and tests use: Miniflare simulates them
+ * locally under .wrangler/state. stage/production get their own resources in `env`.
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidflare",
   "main": "src/worker/index.ts",
   "compatibility_date": "2026-11-04",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"],
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "vidflare-db",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "kv_namespaces": [{ "binding": "CACHE" }],
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "vidflare-media" }],
+  "queues": {
+    "producers": [{ "binding": "EVENTS", "queue": "stream-events" }],
+    "consumers": [{ "queue": "stream-events", "max_batch_size": 10 }],
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "VIDEO_STATS", "class_name": "VideoStats" }],
+  },
+  // Append a new tag for every new Durable Object class. Never edit or reuse a tag.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["VideoStats"] }],
   "observability": {
     "enabled": true,
   },
