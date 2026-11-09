@@ -50,6 +50,7 @@ pnpm --filter web exec wrangler d1 migrations apply vidflare-db --local
 
 - Local first: develop and test against a local environment on the developer's machine. Use local bindings (D1, KV, R2, Queues, Durable Objects) through `vite dev` / Miniflare, seeded with local data and `.dev.vars`. Every new feature must run and pass its tests locally.
 - If a resource can't run locally (e.g. Cloudflare Stream uploads, encoding, webhooks, or Turnstile verification), point only that binding or service at its `stage` resource (`remote: true` or stage credentials in `.dev.vars`). Never point local dev at `production`.
+- [docs/LocalDevelopment.md](docs/LocalDevelopment.md) lists which services point at `stage` locally and how. Update it when that changes.
 - `stage` and `production` are separate Cloudflare environments, each with its own D1, KV, Queue and Stream webhook secret.
 - CI: typecheck + lint + tests on every PR, `wrangler versions upload` for a preview URL; on merge to main, `wrangler d1 migrations apply --remote` then `wrangler deploy`, plus a Sentry release and source map upload.
 

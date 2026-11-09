@@ -18,7 +18,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] `vite dev` running the Worker with local D1, KV, R2, Queues and Durable Objects
 - [x] `.dev.vars.example` committed; `.dev.vars` gitignored
 - [x] Local D1 migrations + seed script (sample users, channels, videos)
-- [ ] Document which services point at `stage` locally (Stream, Turnstile) and how
+- [x] Document which services point at `stage` locally (Stream, Turnstile) and how
 
 **Cloudflare resources (`stage` and `production`)**
 - [ ] D1 `vidflare-db`, KV `CACHE`, R2 `vidflare-media`, Queue `stream-events`, per environment

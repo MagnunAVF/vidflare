@@ -1,6 +1,6 @@
 # Local runtime secrets for `pnpm dev` and tests.
 # Copy to .dev.vars (gitignored) and fill in:  cp .dev.vars.example .dev.vars
-# Never put production values here.
+# Never put production values here. See docs/LocalDevelopment.md for what points at stage.
 
 # Cloudflare Stream: credentials of the *stage* account (Stream can't run locally).
 STREAM_ACCOUNT_ID=
