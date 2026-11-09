@@ -8,7 +8,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] pnpm workspace with `apps/web` and `packages/shared`
 - [x] Scaffold `apps/web` with `pnpm create cloudflare@latest web --framework=react`
 - [x] Add `hono`, `drizzle-orm`, `drizzle-kit`, `zod`, `@hono/zod-validator`
-- [ ] `vite.config.ts` with `react()` + `cloudflare()` (`@cloudflare/vite-plugin`)
+- [x] `vite.config.ts` with `react()` + `cloudflare()` (`@cloudflare/vite-plugin`)
 - [ ] TypeScript strict, ESLint, Prettier; root `typecheck`, `lint`, `test` scripts
 - [ ] Tailwind CSS + shadcn/ui
 - [ ] TanStack Router (file-based) + TanStack Query
