@@ -40,7 +40,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] `POST /api/auth/signup` (PBKDF2, user + channel + session in one `db.batch()`)
 - [x] `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/me`
 - [x] Session cookie: HttpOnly, Secure, SameSite=Lax
-- [ ] `/login` and `/signup` pages with `AuthForm`
+- [x] `/login` and `/signup` pages with `AuthForm`
 
 **CI/CD**
 - [ ] GitHub Actions: typecheck + lint + tests on every PR

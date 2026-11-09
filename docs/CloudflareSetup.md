@@ -59,7 +59,7 @@ Set each one per environment. Piping a value keeps it out of your shell history;
 | `STREAM_ACCOUNT_ID` | Step 3 (same account id in both environments) |
 | `STREAM_API_TOKEN` | Step 3 (that environment's own token) |
 | `STREAM_WEBHOOK_SECRET` | production: the secret Stream returns in step 3.4 (Phase 2). stage: any generated value (`openssl rand -hex 32`), since real webhooks never reach stage directly; it only signs replayed test payloads. |
-| `TURNSTILE_SECRET` | Dashboard → **Turnstile** → add a widget per environment with that environment's hostname(s) → secret key |
+| `TURNSTILE_SECRET` | Dashboard → **Turnstile** → add a widget per environment with that environment's hostname(s) → secret key. The widget's public **site key** isn't a secret: pass it at build time as `VITE_TURNSTILE_SITE_KEY` (for example `VITE_TURNSTILE_SITE_KEY=<key> pnpm deploy:stage`, or a CI variable). |
 | `AUTH_SECRET` | Generate: `openssl rand -hex 32 \| pnpm exec wrangler secret put AUTH_SECRET --env stage` (new value per environment) |
 | `SENTRY_DSN` | The Sentry project's DSN (Sentry task) |
 
