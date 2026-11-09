@@ -12,7 +12,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] TypeScript strict, ESLint, Prettier; root `typecheck`, `lint`, `test` scripts
 - [x] Tailwind CSS + shadcn/ui
 - [x] TanStack Router (file-based) + TanStack Query
-- [ ] `packages/shared` set up as `@vidflare/shared` (Zod only)
+- [x] `packages/shared` set up as `@vidflare/shared` (Zod only)
 
 **Local environment**
 - [ ] `vite dev` running the Worker with local D1, KV, R2, Queues and Durable Objects

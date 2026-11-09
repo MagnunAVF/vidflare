@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Platform-agnostic: no DOM, Node or Workers globals.
+    "lib": ["ES2023"],
+    "types": []
+  },
+  "include": ["src"]
+}
