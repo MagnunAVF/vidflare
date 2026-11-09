@@ -5,7 +5,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 ## Phase 1: Foundation (weeks 1–2)
 
 **Repo and tooling**
-- [ ] pnpm workspace with `apps/web` and `packages/shared`
+- [x] pnpm workspace with `apps/web` and `packages/shared`
 - [ ] Scaffold `apps/web` with `pnpm create cloudflare@latest web --framework=react`
 - [ ] Add `hono`, `drizzle-orm`, `drizzle-kit`, `zod`, `@hono/zod-validator`
 - [ ] `vite.config.ts` with `react()` + `cloudflare()` (`@cloudflare/vite-plugin`)

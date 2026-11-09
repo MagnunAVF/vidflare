@@ -1,0 +1,9 @@
+{
+  "name": "vidflare",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.14.0",
+  "engines": {
+    "node": ">=24"
+  }
+}
