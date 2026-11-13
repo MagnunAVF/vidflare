@@ -1,0 +1,107 @@
+# Preview URL per PR: uploads a new version of the stage Worker (vidflare-stage) without
+# deploying it, under the alias pr-<number>, and comments the URL on the PR.
+#
+# The preview runs this PR's code against stage's resources (D1, KV, R2, Queue). PR
+# migrations are not applied, so a PR that adds a migration only works fully after merge.
+#
+# Setup (docs/CloudflareSetup.md → CI): repository secrets CLOUDFLARE_API_TOKEN and
+# CLOUDFLARE_ACCOUNT_ID, repository variable STAGE_TURNSTILE_SITE_KEY. Until the secrets
+# exist the job skips with a notice instead of failing.
+name: Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Upload preview version
+    # Fork PRs get no secrets; previews are only for branches in this repo.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Check Cloudflare credentials
+        id: gate
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID not set; skipping preview."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v7
+
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: pnpm/action-setup@v6
+
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - if: steps.gate.outputs.enabled == 'true'
+        run: pnpm install --frozen-lockfile
+
+      # The Vite plugin bakes the environment in at build time.
+      - name: Build for stage
+        if: steps.gate.outputs.enabled == 'true'
+        working-directory: apps/web
+        env:
+          CLOUDFLARE_ENV: stage
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.STAGE_TURNSTILE_SITE_KEY }}
+        run: pnpm run build
+
+      - name: Upload version
+        id: upload
+        if: steps.gate.outputs.enabled == 'true'
+        working-directory: apps/web
+        run: |
+          set -o pipefail
+          pnpm exec wrangler versions upload \
+            --preview-alias "pr-${PR_NUMBER}" \
+            --tag "pr-${PR_NUMBER}" \
+            --message "PR #${PR_NUMBER} @ ${HEAD_SHA::7}" 2>&1 | tee upload.log
+          url="$(grep -i 'preview alias url' upload.log | grep -oE 'https://[^ ]+' | head -1 || true)"
+          [ -n "$url" ] || url="$(grep -i 'preview url' upload.log | grep -oE 'https://[^ ]+' | head -1 || true)"
+          if [ -z "$url" ]; then
+            echo "::error::No preview URL in wrangler output. Are preview URLs enabled for vidflare-stage?"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Preview: $url" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment preview URL
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/github-script@v9
+        env:
+          PREVIEW_URL: ${{ steps.upload.outputs.url }}
+        with:
+          script: |
+            const marker = '<!-- vidflare-preview -->'
+            const body = `${marker}\n**Preview:** ${process.env.PREVIEW_URL}\n\nCommit ${process.env.HEAD_SHA.slice(0, 7)} · runs against stage resources; PR migrations are not applied.`
+            const { owner, repo } = context.repo
+            const issue_number = context.issue.number
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number })
+            const existing = comments.find((c) => c.user?.type === 'Bot' && c.body?.includes(marker))
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body })
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body })
+            }
