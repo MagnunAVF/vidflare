@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/cloudflare'
 import { createMiddleware } from 'hono/factory'
 
 import { getDb } from '../db/client'
@@ -6,12 +7,17 @@ import { clearSessionCookie, getSessionToken, loadSession } from '../lib/session
 import type { AppEnv, SessionUser } from '../types'
 
 // Sets c.var.user when the session cookie maps to a live session; clears a stale cookie.
+// Also tags this request's Sentry scope with the user id (never email).
 export const sessionLoader = createMiddleware<AppEnv>(async (c, next) => {
   const token = getSessionToken(c)
   if (token) {
     const user = await loadSession(getDb(c.env.DB), token, c.env.AUTH_SECRET)
-    if (user) c.set('user', user)
-    else clearSessionCookie(c)
+    if (user) {
+      c.set('user', user)
+      Sentry.setUser({ id: user.id })
+    } else {
+      clearSessionCookie(c)
+    }
   }
   await next()
 })
