@@ -51,7 +51,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] Worker: `@sentry/cloudflare`, `withSentry`, `sentryOptions(env)`, `captureException` in `onError`
 - [x] React: `@sentry/react` init, `ErrorBoundary`, TanStack Router tracing, `tracePropagationTargets`
 - [x] `setUser({ id })` on login, `setUser(null)` on logout
-- [ ] `@sentry/vite-plugin` source map upload in CI (`SENTRY_AUTH_TOKEN`), hidden source maps
+- [x] `@sentry/vite-plugin` source map upload in CI (`SENTRY_AUTH_TOKEN`), hidden source maps
 
 **Exit criteria**
 - [ ] A user can sign up and log in on a stage URL

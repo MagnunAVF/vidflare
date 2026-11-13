@@ -66,6 +66,10 @@ jobs:
         env:
           CLOUDFLARE_ENV: stage
           VITE_TURNSTILE_SITE_KEY: ${{ vars.STAGE_TURNSTILE_SITE_KEY }}
+          # Previews report to stage's Sentry under release pr-<n> (matches the version tag).
+          # No source map upload for previews.
+          VITE_SENTRY_DSN: ${{ vars.STAGE_SENTRY_DSN }}
+          VITE_RELEASE: pr-${{ github.event.pull_request.number }}
         run: pnpm run build
 
       - name: Upload version
