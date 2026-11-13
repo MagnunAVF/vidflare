@@ -43,7 +43,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] `/login` and `/signup` pages with `AuthForm`
 
 **CI/CD**
-- [ ] GitHub Actions: typecheck + lint + tests on every PR
+- [x] GitHub Actions: typecheck + lint + tests on every PR
 - [ ] Preview URL per PR via `wrangler versions upload`
 - [ ] On merge to main: `wrangler d1 migrations apply --remote` then `wrangler deploy`
 
