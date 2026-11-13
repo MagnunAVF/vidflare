@@ -1,0 +1,136 @@
+# On merge to main: CI checks → stage (D1 migrations, then deploy) → production (same).
+#
+# Migrations run before the new code is deployed, so each one must work with the code that
+# is still live (add columns/tables first, remove them in a later release).
+#
+# Setup (docs/CloudflareSetup.md → CI): repository secrets CLOUDFLARE_API_TOKEN and
+# CLOUDFLARE_ACCOUNT_ID; repository variables STAGE_TURNSTILE_SITE_KEY and
+# PRODUCTION_TURNSTILE_SITE_KEY; a GitHub environment named "production" (add required
+# reviewers there to gate production deploys). Real resource ids must be in wrangler.jsonc.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Never cancel a deploy halfway; queue the next one instead.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  stage:
+    name: Deploy stage
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: stage
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Check Cloudflare credentials
+        id: gate
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID not set; skipping deploy."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v7
+
+      - name: Check resource ids
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          if grep -q '<stage .* id from scripts/setup-cloudflare.sh>' apps/web/wrangler.jsonc; then
+            echo "::error::wrangler.jsonc still has stage placeholders. Run 'pnpm --filter web cf:setup stage' and commit the ids."
+            exit 1
+          fi
+
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: pnpm/action-setup@v6
+
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - if: steps.gate.outputs.enabled == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply D1 migrations
+        if: steps.gate.outputs.enabled == 'true'
+        working-directory: apps/web
+        run: pnpm exec wrangler d1 migrations apply vidflare-db-stage --remote --env stage
+
+      - name: Deploy
+        if: steps.gate.outputs.enabled == 'true'
+        working-directory: apps/web
+        env:
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.STAGE_TURNSTILE_SITE_KEY }}
+        run: pnpm run deploy:stage
+
+  production:
+    name: Deploy production
+    needs: stage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Check Cloudflare credentials
+        id: gate
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID not set; skipping deploy."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v7
+
+      - name: Check resource ids
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          if grep -q '<production .* id from scripts/setup-cloudflare.sh>' apps/web/wrangler.jsonc; then
+            echo "::error::wrangler.jsonc still has production placeholders. Run 'pnpm --filter web cf:setup production' and commit the ids."
+            exit 1
+          fi
+
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: pnpm/action-setup@v6
+
+      - if: steps.gate.outputs.enabled == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - if: steps.gate.outputs.enabled == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply D1 migrations
+        if: steps.gate.outputs.enabled == 'true'
+        working-directory: apps/web
+        run: pnpm exec wrangler d1 migrations apply vidflare-db-production --remote --env production
+
+      - name: Deploy
+        if: steps.gate.outputs.enabled == 'true'
+        working-directory: apps/web
+        env:
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.PRODUCTION_TURNSTILE_SITE_KEY }}
+        run: pnpm run deploy:production
