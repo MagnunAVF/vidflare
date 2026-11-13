@@ -48,7 +48,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [ ] On merge to main: `wrangler d1 migrations apply --remote` then `wrangler deploy`
 
 **Sentry**
-- [ ] Worker: `@sentry/cloudflare`, `withSentry`, `sentryOptions(env)`, `captureException` in `onError`
+- [x] Worker: `@sentry/cloudflare`, `withSentry`, `sentryOptions(env)`, `captureException` in `onError`
 - [ ] React: `@sentry/react` init, `ErrorBoundary`, TanStack Router tracing, `tracePropagationTargets`
 - [ ] `setUser({ id })` on login, `setUser(null)` on logout
 - [ ] `@sentry/vite-plugin` source map upload in CI (`SENTRY_AUTH_TOKEN`), hidden source maps

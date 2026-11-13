@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/cloudflare'
 import type { Context } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
@@ -29,8 +30,9 @@ export function onError(err: Error, c: Context<AppEnv>) {
       err.status,
     )
   }
-  // Unexpected: log ids and the error type only (no request data). Sentry capture is added
-  // by the Sentry task.
+  // Unexpected: this handler swallows the error, so report it to Sentry explicitly (expected
+  // ApiError/HTTPException failures above are not issues). Log ids and the error type only.
+  Sentry.captureException(err)
   console.error(
     JSON.stringify({ msg: 'unhandled_error', requestId, error: err.name, message: err.message }),
   )

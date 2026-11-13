@@ -343,13 +343,18 @@ Sentry is the single place for errors, traces, logs and metrics across the React
 // worker/sentry.ts
 import * as Sentry from '@sentry/cloudflare'
 
-export const sentryOptions = (env: Env) => ({
-  dsn: env.SENTRY_DSN,
-  environment: env.ENVIRONMENT,              // 'stage' | 'production'
-  release: env.CF_VERSION_METADATA.id,       // ties errors to a Worker version
+export const sentryOptions = (env: Env): CloudflareOptions => ({
+  dsn: env.SENTRY_DSN || undefined,          // empty locally → SDK off
+  environment: env.ENVIRONMENT,              // 'local' | 'stage' | 'production'
+  // CI deploys with `wrangler deploy --tag <git sha>`; the client build uses the same sha,
+  // so both sides report one release. Falls back to the version id.
+  release: env.CF_VERSION_METADATA.tag || env.CF_VERSION_METADATA.id,
   tracesSampleRate: env.ENVIRONMENT === 'production' ? 0.2 : 1.0,
-  enableLogs: true,
-  sendDefaultPii: false,
+  // SDK v11 replaced `sendDefaultPii` with `dataCollection`, which collects cookies, headers,
+  // bodies and query strings by default. Turn all of that off; only the user id is set.
+  dataCollection: { userInfo: false, cookies: false, httpBodies: [], urlQueryParams: false,
+    httpHeaders: { request: { allow: ['content-type', 'user-agent', 'cf-ray'] },
+                   response: { allow: ['content-type', 'x-request-id'] } } },
 })
 
 // worker/index.ts

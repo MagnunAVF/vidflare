@@ -1,13 +1,18 @@
+import * as Sentry from '@sentry/cloudflare'
 import { Hono } from 'hono'
 
+import { VideoStats as VideoStatsBase } from './do/VideoStats'
 import { notFound, onError } from './lib/errors'
 import { requestContext } from './middleware/request-context'
 import { sessionLoader } from './middleware/session'
 import { auth } from './routes/auth'
 import { me } from './routes/me'
+import { sentryOptions } from './sentry'
 import type { AppEnv } from './types'
 
-export { VideoStats } from './do/VideoStats'
+export const VideoStats = Sentry.instrumentDurableObjectWithSentry(sentryOptions, VideoStatsBase)
+// Same name as a type, so wrangler's generated DurableObjectNamespace<VideoStats> resolves.
+export type VideoStats = VideoStatsBase
 
 // One chained expression: `typeof app` must carry every route for the typed client.
 // Breaking the chain silently drops routes from AppType.
@@ -25,7 +30,8 @@ const app = new Hono<AppEnv>()
 
 export type AppType = typeof app
 
-export default {
+// Sentry is outermost: withSentry instruments fetch and queue (requests, outbound fetch, D1).
+export default Sentry.withSentry(sentryOptions, {
   fetch: app.fetch,
 
   // Consumer for `stream-events`. Nothing produces messages yet; the Stream webhook
@@ -34,4 +40,4 @@ export default {
   queue(batch) {
     throw new Error(`stream-events consumer not implemented (${batch.messages.length} messages)`)
   },
-} satisfies ExportedHandler<Env>
+} satisfies ExportedHandler<Env>)
