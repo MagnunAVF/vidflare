@@ -6,6 +6,9 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
+// The client reports the same environment as the Worker (CLOUDFLARE_ENV picks the env).
+process.env.VITE_ENVIRONMENT ??= process.env.CLOUDFLARE_ENV || 'local'
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [

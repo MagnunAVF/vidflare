@@ -375,26 +375,28 @@ app.onError((err, c) => {
 **React setup**
 
 ```ts
-// client/main.tsx
+// client/lib/sentry.ts — initSentry(router), called from main.tsx; no VITE_SENTRY_DSN → no SDK
 import * as Sentry from '@sentry/react'
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
-  environment: import.meta.env.MODE,
-  release: import.meta.env.VITE_RELEASE,
+  environment: import.meta.env.VITE_ENVIRONMENT,  // from CLOUDFLARE_ENV in vite.config.ts
+  release: import.meta.env.VITE_RELEASE,          // git sha, same as the Worker's deploy tag
   integrations: [
     Sentry.tanstackRouterBrowserTracingIntegration(router),  // route-pattern transaction names
-    Sentry.replayIntegration({ maskAllText: true }),
+    Sentry.replayIntegration({ maskAllText: true, blockAllMedia: true }),
   ],
-  tracesSampleRate: 0.2,
-  tracePropagationTargets: [/^\/api\//],  // continue traces into the Worker
+  tracesSampleRate: environment === 'production' ? 0.2 : 1.0,
+  // continue traces into the Worker (relative and absolute same-origin /api URLs)
+  tracePropagationTargets: [/^\/api\//, new RegExp(`^${origin}/api/`)],
   replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 1.0,
-  enableLogs: true,
+  dataCollection: { userInfo: false, cookies: false, httpHeaders: false, httpBodies: [],
+    urlQueryParams: false },
 })
 ```
 
-- Wrap the app root in `Sentry.ErrorBoundary` with a friendly fallback page.
+- Wrap the app root in `Sentry.ErrorBoundary` with a friendly fallback page. Route errors are caught by the router, so also set `defaultOnCatch` (captureException) and `defaultErrorComponent` (same fallback).
 - On login call `Sentry.setUser({ id })`; on logout `Sentry.setUser(null)`. Never send email or passwords.
 
 **Custom instrumentation**
