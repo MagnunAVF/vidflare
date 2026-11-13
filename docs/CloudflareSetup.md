@@ -78,3 +78,22 @@ pnpm deploy:production
 ```
 
 These build with `CLOUDFLARE_ENV=<env>`, because the Vite plugin picks the environment at build time. Never run a plain `wrangler deploy` after a plain `vite build`: it would deploy the local config as a Worker named `vidflare`.
+
+Normally you don't deploy by hand: CI does it (next section).
+
+## 6. CI (GitHub Actions)
+
+| Workflow | Trigger | Does | Needs |
+| --- | --- | --- | --- |
+| `ci.yml` | every PR, push to main | format check, typecheck, lint, tests, build | nothing |
+| `preview.yml` | PRs from this repo | uploads a version of `vidflare-stage` with alias `pr-<n>` and comments the preview URL | secrets + `STAGE_TURNSTILE_SITE_KEY` |
+| `deploy.yml` | push to main | `ci.yml`, then stage, then production: remote D1 migrations, then deploy | everything below |
+
+`preview.yml` and `deploy.yml` skip with a notice until the Cloudflare secrets exist, and `deploy.yml` stops while `wrangler.jsonc` still has placeholder ids (step 2).
+
+1. **API token for CI.** Dashboard → **My Profile → API Tokens → Create Token**, starting from the *Edit Cloudflare Workers* template, then add *Account · D1 · Edit* and *Account · Queues · Edit* (needed for remote migrations and the queue consumer). Limit it to this account.
+2. **Repository secrets** (Settings → Secrets and variables → Actions → Secrets): `CLOUDFLARE_API_TOKEN` (step 1) and `CLOUDFLARE_ACCOUNT_ID`.
+3. **Repository variables** (same page → Variables): `STAGE_TURNSTILE_SITE_KEY` and `PRODUCTION_TURNSTILE_SITE_KEY` (the public site keys from step 4's Turnstile widgets).
+4. **Environments** (Settings → Environments): `stage` and `production` are created on the first run. Add required reviewers to `production` if production deploys should wait for an approval.
+
+Previews run the PR's code against stage's resources and don't apply the PR's migrations, so a PR that adds a migration only works fully on stage after it merges. Migrations run before each deploy, so every migration must also work with the code that is still live.
