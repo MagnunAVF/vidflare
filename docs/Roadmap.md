@@ -441,7 +441,7 @@ Sentry.init({
 
 - `wrangler dev` / `vite dev` locally with local bindings; `remote: true` only for Stream calls.
 - Two Cloudflare environments in one account: `stage` and `production`, each with its own D1, KV, R2 and Queue. They share the account's Stream library and its single webhook, which production routes by `meta.env` (see Stream across environments).
-- GitHub Actions: typecheck + lint + tests on every PR, `wrangler versions upload` for a preview URL, `wrangler d1 migrations apply --remote` then `wrangler deploy` on merge to main.
+- GitHub Actions: typecheck + lint + tests on every PR, `wrangler versions upload` for a preview URL, and on push `wrangler d1 migrations apply --remote` then `wrangler deploy`: `dev` → stage, `main` → production.
 - Alerting and dashboards run in Sentry (see Observability with Sentry); Workers Logs stays on as a fallback.
 
 **Cost drivers** (check current pricing before launch)

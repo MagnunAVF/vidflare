@@ -45,7 +45,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 **CI/CD**
 - [x] GitHub Actions: typecheck + lint + tests on every PR
 - [ ] Preview URL per PR via `wrangler versions upload`
-- [ ] On merge to main: `wrangler d1 migrations apply --remote` then `wrangler deploy`
+- [ ] On push (`dev` → stage, `main` → production): `wrangler d1 migrations apply --remote` then `wrangler deploy`
 
 **Sentry**
 - [x] Worker: `@sentry/cloudflare`, `withSentry`, `sentryOptions(env)`, `captureException` in `onError`

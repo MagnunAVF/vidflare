@@ -30,7 +30,7 @@ pnpm exec wrangler types        # then commit wrangler.jsonc and worker-configur
 
 The script is idempotent: it reuses resources that exist, creates the missing ones and writes the D1/KV ids over the placeholders in `wrangler.jsonc`. It never deletes anything.
 
-Then apply the D1 schema remotely (CI does this on every merge to main once the CI task lands):
+Then apply the D1 schema remotely (after that, CI does it on every deploy: push to `dev` for stage, push to `main` for production):
 
 ```sh
 pnpm exec wrangler d1 migrations apply vidflare-db-stage --remote --env stage
@@ -87,7 +87,7 @@ Normally you don't deploy by hand: CI does it (next section).
 | --- | --- | --- | --- |
 | `ci.yml` | every PR, push to main | format check, typecheck, lint, tests, build | nothing |
 | `preview.yml` | PRs from this repo | uploads a version of `vidflare-stage` with alias `pr-<n>` and comments the preview URL | secrets + `STAGE_TURNSTILE_SITE_KEY` |
-| `deploy.yml` | push to main | `ci.yml`, then stage, then production: remote D1 migrations, then deploy | everything below |
+| `deploy.yml` | push to `dev` → stage; push to `main` → production | `ci.yml`, then that environment's remote D1 migrations, then deploy | everything below |
 
 `preview.yml` and `deploy.yml` skip with a notice until the Cloudflare secrets exist, and `deploy.yml` stops while `wrangler.jsonc` still has placeholder ids (step 2).
 

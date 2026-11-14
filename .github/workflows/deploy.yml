@@ -1,4 +1,6 @@
-# On merge to main: CI checks → stage (D1 migrations, then deploy) → production (same).
+# Branch → environment: push to dev deploys stage, push to main deploys production.
+# Each run: CI checks → D1 migrations for that environment → deploy. (PRs only get preview
+# versions of stage, see preview.yml.)
 #
 # Migrations run before the new code is deployed, so each one must work with the code that
 # is still live (add columns/tables first, remove them in a later release).
@@ -15,14 +17,14 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [dev, main]
 
 permissions:
   contents: read
 
-# Never cancel a deploy halfway; queue the next one instead.
+# One deploy at a time per branch (= per environment); never cancel one halfway, queue instead.
 concurrency:
-  group: deploy-main
+  group: deploy-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -31,6 +33,7 @@ jobs:
 
   stage:
     name: Deploy stage
+    if: github.ref == 'refs/heads/dev'
     needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -99,7 +102,8 @@ jobs:
 
   production:
     name: Deploy production
-    needs: stage
+    if: github.ref == 'refs/heads/main'
+    needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
