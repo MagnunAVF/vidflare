@@ -1,0 +1,102 @@
+# Sentry setup
+
+How to connect vidflare to Sentry for errors, traces and session replays (on error only). The code is already wired; this is the account and configuration side. Commands are run from the repo root.
+
+Without any of this, Sentry stays off: an empty DSN disables the SDK in the Worker and skips it entirely in the browser.
+
+## What the app reads
+
+| Setting | Where it lives | Used by | Secret? |
+| --- | --- | --- | --- |
+| `SENTRY_DSN` | Worker secret per environment (`wrangler secret put`); `.dev.vars` locally | Worker SDK | Treat as secret (it's not sensitive, but it's a runtime secret by convention) |
+| `VITE_SENTRY_DSN` | GitHub variable `STAGE_SENTRY_DSN` / `PRODUCTION_SENTRY_DSN`, passed at build time; `apps/web/.env.local` locally | Browser SDK | No, it ends up in the public bundle |
+| `SENTRY_AUTH_TOKEN` | GitHub secret | Source map upload in CI | **Yes**, CI only, never a Worker secret |
+| `SENTRY_ORG`, `SENTRY_PROJECT` | GitHub variables | Source map upload in CI | No |
+| Release | Automatic: the git sha (`VITE_RELEASE` for the client, `wrangler deploy --tag` for the Worker) | Both SDKs and the upload | — |
+| Environment | Automatic: `local`, `stage` or `production` | Both SDKs | — |
+
+## 1. Create the project
+
+1. Sign in to [sentry.io](https://sentry.io) and pick (or create) the organization.
+2. **Projects → Create Project**, platform **React** (the Worker reports into the same project). Name it `vidflare`.
+
+One project holds the browser and the Worker; `environment` (`stage` / `production` / `local`) and the shared release keep them apart, and a browser trace continues into the Worker in the same project. Source maps for both bundles upload to it too.
+
+The project slug (`vidflare`) is `SENTRY_PROJECT`. The organization slug (in the URL, `sentry.io/organizations/<slug>/`) is `SENTRY_ORG`.
+
+## 2. Get the DSN
+
+**Settings → Projects → vidflare → Client Keys (DSN)** and copy the DSN (`https://<key>@o<n>.ingest.<region>.sentry.io/<project-id>`).
+
+The same DSN works for every environment; events are told apart by `environment`. If you'd rather keep stage noise out of production's quotas, create a second key in the same screen and use one per environment.
+
+## 3. Lock down privacy in the project
+
+The SDKs already send no cookies, headers (beyond a small allow-list), request bodies, query strings or IPs; only the user **id**. Add Sentry's server-side safety net on top:
+
+**Settings → Projects → vidflare → Security & Privacy**
+- **Data Scrubber**: on
+- **Use Default Scrubbers**: on
+- **Prevent Storing of IP Addresses**: on
+
+Session replays already mask all text and block media in the client.
+
+Optionally, **Inbound Filters → Filter out events coming from localhost**, so local testing never reaches the project unless you want it to.
+
+## 4. Worker secret per environment
+
+```sh
+pnpm --filter web exec wrangler secret put SENTRY_DSN --env stage
+pnpm --filter web exec wrangler secret put SENTRY_DSN --env production
+```
+
+Paste the DSN when prompted. Check with `pnpm --filter web exec wrangler secret list --env stage` (names only).
+
+## 5. Auth token for source maps (CI)
+
+**Settings → Developer Settings → Organization Tokens → Create New Token**, name it `vidflare-ci`. Organization tokens carry exactly the scopes needed to create releases and upload source maps. Copy it once; Sentry won't show it again.
+
+It goes into GitHub only (next step). Never put it in `wrangler.jsonc`, `.dev.vars` or a Worker secret.
+
+## 6. GitHub configuration
+
+Repository **Settings → Secrets and variables → Actions**:
+
+| Kind | Name | Value |
+| --- | --- | --- |
+| Secret | `SENTRY_AUTH_TOKEN` | the token from step 5 |
+| Variable | `SENTRY_ORG` | organization slug |
+| Variable | `SENTRY_PROJECT` | `vidflare` |
+| Variable | `STAGE_SENTRY_DSN` | DSN for stage (step 2) |
+| Variable | `PRODUCTION_SENTRY_DSN` | DSN for production (step 2) |
+
+What CI then does on each deploy (`.github/workflows/deploy.yml`): builds with `VITE_SENTRY_DSN` and `VITE_RELEASE=<git sha>`, generates hidden source maps, uploads them for the client and Worker under that release, deletes the client maps so they're never served, and deploys the Worker with `--tag <git sha>` so it reports the same release. PR previews report to stage under release `pr-<number>` and upload no source maps.
+
+A wrong or missing token only logs upload errors; the deploy still succeeds, but stack traces stay minified. Check the deploy log for `sentry-vite-plugin` errors after the first run.
+
+## 7. Verify
+
+After the first deploy to stage:
+
+1. **Releases**: Sentry → Releases shows the git sha of the deploy, with source map artifacts attached.
+2. **Error**: trigger an error on stage (the Phase 1 exit criterion; a test-error route for local and stage is planned for this). The issue should show `environment: stage`, the release sha, a readable (source-mapped) stack trace, and only `user.id` when signed in.
+3. **Trace**: open the issue's trace. A browser page load should continue into the Worker request (`GET /api/...`) in the same trace.
+4. **Nothing private**: in the event's request section there should be no cookie, body or query string, and no email anywhere.
+
+## Local testing (optional)
+
+Point a local session at Sentry to try changes to the instrumentation:
+
+```sh
+# apps/web/.dev.vars       (Worker)
+SENTRY_DSN=<stage DSN>
+
+# apps/web/.env.local      (client)
+VITE_SENTRY_DSN=<stage DSN>
+```
+
+Events are tagged `environment: local`. Local builds never produce source maps. Leave both empty again when done (or keep the localhost inbound filter on).
+
+## Later (Phase 4)
+
+Alerts, dashboards, custom spans and metrics are part of the Phase 4 observability work; see "Observability with Sentry" in [Roadmap.md](Roadmap.md).

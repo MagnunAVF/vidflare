@@ -61,7 +61,7 @@ Set each one per environment. Piping a value keeps it out of your shell history;
 | `STREAM_WEBHOOK_SECRET` | production: the secret Stream returns in step 3.4 (Phase 2). stage: any generated value (`openssl rand -hex 32`), since real webhooks never reach stage directly; it only signs replayed test payloads. |
 | `TURNSTILE_SECRET` | Dashboard → **Turnstile** → add a widget per environment with that environment's hostname(s) → secret key. The widget's public **site key** isn't a secret: pass it at build time as `VITE_TURNSTILE_SITE_KEY` (for example `VITE_TURNSTILE_SITE_KEY=<key> pnpm deploy:stage`, or a CI variable). |
 | `AUTH_SECRET` | Generate: `openssl rand -hex 32 \| pnpm exec wrangler secret put AUTH_SECRET --env stage` (new value per environment) |
-| `SENTRY_DSN` | The Sentry project's DSN (Sentry task) |
+| `SENTRY_DSN` | The Sentry project's DSN; see [SentrySetup.md](SentrySetup.md) |
 
 ```sh
 pnpm exec wrangler secret put STREAM_API_TOKEN --env stage
@@ -96,7 +96,7 @@ Normally you don't deploy by hand: CI does it (next section).
 3. **Repository variables** (same page → Variables):
    - `STAGE_TURNSTILE_SITE_KEY`, `PRODUCTION_TURNSTILE_SITE_KEY`: the public site keys from step 4's Turnstile widgets
    - `STAGE_SENTRY_DSN`, `PRODUCTION_SENTRY_DSN`: the client DSN for each environment (public; usually the same value as that environment's `SENTRY_DSN` Worker secret)
-   - `SENTRY_ORG`, `SENTRY_PROJECT`: where source maps are uploaded
+   - `SENTRY_ORG`, `SENTRY_PROJECT`: where source maps are uploaded (all Sentry values: [SentrySetup.md](SentrySetup.md))
 
 Each deploy uses the git sha as the Sentry release everywhere: the client build reports it (`VITE_RELEASE`), the Worker is deployed with `--tag <sha>` (read back from `CF_VERSION_METADATA.tag`), and the Sentry Vite plugin uploads hidden source maps for both bundles under that release, then deletes the client maps so they are never served. Builds without `SENTRY_AUTH_TOKEN` (local, previews) produce no source maps. A wrong token only logs upload errors; it doesn't fail the deploy.
 4. **Environments** (Settings → Environments): `stage` and `production` are created on the first run. Add required reviewers to `production` if production deploys should wait for an approval.
