@@ -1,5 +1,6 @@
 # Typecheck, lint, tests and build. Runs on every PR and push to main, and is reused by
-# deploy.yml so nothing ships without passing it. Needs no secrets.
+# deploy-stage.yml and deploy-production.yml so nothing ships without passing it. Needs no
+# secrets.
 name: CI
 
 on:

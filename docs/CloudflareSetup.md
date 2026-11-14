@@ -87,9 +87,10 @@ Normally you don't deploy by hand: CI does it (next section).
 | --- | --- | --- | --- |
 | `ci.yml` | every PR, push to main | format check, typecheck, lint, tests, build | nothing |
 | `preview.yml` | PRs from this repo | uploads a version of `vidflare-stage` with alias `pr-<n>` and comments the preview URL | secrets + `STAGE_TURNSTILE_SITE_KEY` |
-| `deploy.yml` | push to `dev` → stage; push to `main` → production | `ci.yml`, then that environment's remote D1 migrations, then deploy | everything below |
+| `deploy-stage.yml` | push to `dev` | `ci.yml`, then stage's remote D1 migrations, then deploy `vidflare-stage` | everything below (stage values) |
+| `deploy-production.yml` | push to `main` | `ci.yml`, then production's remote D1 migrations, then deploy `vidflare-production` | everything below (production values) |
 
-`preview.yml` and `deploy.yml` skip with a notice until the Cloudflare secrets exist, and `deploy.yml` stops while `wrangler.jsonc` still has placeholder ids (step 2).
+`preview.yml` and both deploy workflows skip with a notice until the Cloudflare secrets exist, and each deploy workflow stops while `wrangler.jsonc` still has placeholder ids for its environment (step 2).
 
 1. **API token for CI.** Dashboard → **My Profile → API Tokens → Create Token**, starting from the *Edit Cloudflare Workers* template, then add *Account · D1 · Edit* and *Account · Queues · Edit* (needed for remote migrations and the queue consumer). Limit it to this account.
 2. **Repository secrets** (Settings → Secrets and variables → Actions → Secrets): `CLOUDFLARE_API_TOKEN` (step 1), `CLOUDFLARE_ACCOUNT_ID`, and `SENTRY_AUTH_TOKEN` (a Sentry organization auth token with release and source map upload scope; CI only, never a Worker secret).
