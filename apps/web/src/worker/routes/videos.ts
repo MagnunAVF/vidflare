@@ -1,4 +1,5 @@
-import { createUploadInput, UPLOAD_MAX_DURATION_S } from '@vidflare/shared'
+import { createUploadInput, UPLOAD_MAX_DURATION_S, videoIdParam } from '@vidflare/shared'
+import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 
 import { getDb } from '../db/client'
@@ -11,11 +12,8 @@ import { createDirectUpload, deleteVideo, streamConfig } from '../services/strea
 import { verifyTurnstile } from '../services/turnstile'
 import type { AppEnv } from '../types'
 
-export const videoRoutes = new Hono<AppEnv>().post(
-  '/uploads',
-  requireUser,
-  validate('json', createUploadInput),
-  async (c) => {
+export const videoRoutes = new Hono<AppEnv>()
+  .post('/uploads', requireUser, validate('json', createUploadInput), async (c) => {
     const input = c.req.valid('json')
 
     const human = await verifyTurnstile(
@@ -55,5 +53,29 @@ export const videoRoutes = new Hono<AppEnv>().post(
     }
 
     return c.json({ videoId, uploadUrl: upload.uploadUrl }, 201)
-  },
-)
+  })
+  // The browser finished sending the bytes: uploading → processing. Only from `uploading`, so
+  // a webhook that already set `ready` or `error` is never overwritten. Owner check in SQL.
+  // Repeat calls are harmless and return the current status.
+  .post('/:id/uploaded', requireUser, validate('param', videoIdParam), async (c) => {
+    const { id } = c.req.valid('param')
+    const db = getDb(c.env.DB)
+    const owned = and(eq(videos.id, id), eq(videos.channelId, c.var.user.channel.id))
+
+    const moved = await db
+      .update(videos)
+      .set({ status: 'processing' })
+      .where(and(owned, eq(videos.status, 'uploading')))
+      .returning({ id: videos.id, status: videos.status })
+      .get()
+    if (moved) return c.json(moved, 200)
+
+    const current = await db
+      .select({ id: videos.id, status: videos.status })
+      .from(videos)
+      .where(owned)
+      .get()
+    // Someone else's video answers like a missing one.
+    if (!current) throw new ApiError(404, 'not_found')
+    return c.json(current, 200)
+  })

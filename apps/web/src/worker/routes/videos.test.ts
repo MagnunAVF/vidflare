@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getDb } from '../db/client'
 import { videos } from '../db/schema'
+import { uuidv7 } from '../lib/id'
 import { mockFetch, postJson, signUp, STREAM_API_URL, TURNSTILE_URL } from '../test/helpers'
 
 const db = getDb(env.DB)
@@ -139,5 +140,67 @@ describe('POST /api/videos/uploads', () => {
     expect(res.status).toBe(500)
     const deleted = requests.find((r) => r.method === 'DELETE')
     expect(deleted?.url).toMatch(new RegExp(`/stream/${uid}$`))
+  })
+})
+
+// A video row in any status, owned by the given channel.
+async function insertVideo(
+  channelId: string,
+  status: 'uploading' | 'processing' | 'ready' | 'error',
+) {
+  const id = uuidv7()
+  await db.insert(videos).values({
+    id,
+    channelId,
+    streamUid: nextUid(),
+    title: 'Clip',
+    status,
+    createdAt: Date.now(),
+  })
+  return id
+}
+
+describe('POST /api/videos/:id/uploaded', () => {
+  it('moves an uploading video to processing', async () => {
+    const { cookie, channelId } = await signUp()
+    const id = await insertVideo(channelId, 'uploading')
+
+    const res = await postJson(`/api/videos/${id}/uploaded`, {}, { cookie })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ id, status: 'processing' })
+    expect((await db.select().from(videos).where(eq(videos.id, id)).get())?.status).toBe(
+      'processing',
+    )
+  })
+
+  it('never overwrites a status the webhook already set, and repeats are harmless', async () => {
+    const { cookie, channelId } = await signUp()
+    for (const status of ['processing', 'ready', 'error'] as const) {
+      const id = await insertVideo(channelId, status)
+      const res = await postJson(`/api/videos/${id}/uploaded`, {}, { cookie })
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({ id, status })
+    }
+  })
+
+  it("answers 404 for someone else's video and leaves it alone", async () => {
+    const owner = await signUp()
+    const other = await signUp()
+    const id = await insertVideo(owner.channelId, 'uploading')
+
+    const res = await postJson(`/api/videos/${id}/uploaded`, {}, { cookie: other.cookie })
+
+    expect(res.status).toBe(404)
+    expect((await db.select().from(videos).where(eq(videos.id, id)).get())?.status).toBe(
+      'uploading',
+    )
+  })
+
+  it('answers 404 for an unknown id, 400 for a malformed one, 401 when signed out', async () => {
+    const { cookie } = await signUp()
+    expect((await postJson(`/api/videos/${uuidv7()}/uploaded`, {}, { cookie })).status).toBe(404)
+    expect((await postJson('/api/videos/nope/uploaded', {}, { cookie })).status).toBe(400)
+    expect((await postJson(`/api/videos/${uuidv7()}/uploaded`, {})).status).toBe(401)
   })
 })
