@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.worker.tsbuildinfo",
+    "lib": ["ES2023"],
+    "types": ["./worker-configuration.d.ts", "@cloudflare/vitest-plugin/types"],
+    // Emits declarations only, so the client (tsconfig.app.json) can reference this project
+    // and get AppType without type-checking Worker source against DOM types.
+    "composite": true,
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "declarationDir": "./node_modules/.tmp/worker-types"
+  },
+  "include": ["src/worker"]
+}

@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "jsx": "react-jsx",
+    "allowArbitraryExtensions": true,
+    "paths": {
+      "@/*": ["./src/client/*"]
+    }
+  },
+  "include": ["src/client"],
+  // `import type { AppType } from '../../worker'` resolves to the worker project's emitted
+  // declarations instead of its source.
+  "references": [{ "path": "./tsconfig.worker.json" }]
+}

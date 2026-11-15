@@ -23,7 +23,7 @@ packages/shared/     # Zod schemas + DTO types shared by client and worker → s
 
 ## Stack at a glance
 
-TypeScript (strict) · React + Vite + `@cloudflare/vite-plugin` · TanStack Router + Query · Tailwind + shadcn/ui · Hono on Workers · Zod · Drizzle ORM (D1) · Cloudflare Stream, D1, KV, R2, Queues, Durable Objects, Turnstile · Sentry · Vitest (`@cloudflare/vitest-pool-workers`) + Playwright · GitHub Actions + Wrangler.
+TypeScript (strict) · React + Vite + `@cloudflare/vite-plugin` · TanStack Router + Query · Tailwind + shadcn/ui · Hono on Workers · Zod · Drizzle ORM (D1) · Cloudflare Stream, D1, KV, R2, Queues, Durable Objects, Turnstile · Sentry · Vitest (`@cloudflare/vitest-plugin`) + Playwright · GitHub Actions + Wrangler.
 
 ## Project-wide rules
 
@@ -49,9 +49,10 @@ pnpm --filter web exec wrangler d1 migrations apply vidflare-db --local
 ## Environments and deploy
 
 - Local first: develop and test against a local environment on the developer's machine. Use local bindings (D1, KV, R2, Queues, Durable Objects) through `vite dev` / Miniflare, seeded with local data and `.dev.vars`. Every new feature must run and pass its tests locally.
-- If a resource can't run locally (e.g. Cloudflare Stream uploads, encoding, webhooks, or Turnstile verification), point only that binding or service at its `stage` resource (`remote: true` or stage credentials in `.dev.vars`). Never point local dev at `production`.
-- `stage` and `production` are separate Cloudflare environments, each with its own D1, KV, Queue and Stream webhook secret.
-- CI: typecheck + lint + tests on every PR, `wrangler versions upload` for a preview URL; on merge to main, `wrangler d1 migrations apply --remote` then `wrangler deploy`, plus a Sentry release and source map upload.
+- If a resource can't run locally (e.g. Cloudflare Stream uploads and encoding, or Turnstile verification), point only that binding or service at its `stage` resource (`remote: true` or stage credentials in `.dev.vars`). Never point local dev at `production`. Stream webhooks never reach local dev; replay recorded payloads instead.
+- [docs/LocalDevelopment.md](docs/LocalDevelopment.md) lists which services point at `stage` locally and how. Update it when that changes.
+- `stage` and `production` are separate environments in one Cloudflare account, each with its own D1, KV, R2 and Queue. They share one Stream library and its single webhook: uploads are tagged `meta.env`, and the production Worker routes each event to that environment's queue. See "Stream across environments" in the roadmap.
+- CI: typecheck + lint + tests on every PR (no per-PR previews; `stage` is where changes are tried before production); push to `dev` deploys `stage` and push to `main` deploys `production` (`wrangler d1 migrations apply --remote` then `wrangler deploy`, plus a Sentry release and source map upload).
 
 ## Done means
 

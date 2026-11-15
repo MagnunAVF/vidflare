@@ -5,72 +5,72 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 ## Phase 1: Foundation (weeks 1–2)
 
 **Repo and tooling**
-- [ ] pnpm workspace with `apps/web` and `packages/shared`
-- [ ] Scaffold `apps/web` with `pnpm create cloudflare@latest web --framework=react`
-- [ ] Add `hono`, `drizzle-orm`, `drizzle-kit`, `zod`, `@hono/zod-validator`
-- [ ] `vite.config.ts` with `react()` + `cloudflare()` (`@cloudflare/vite-plugin`)
-- [ ] TypeScript strict, ESLint, Prettier; root `typecheck`, `lint`, `test` scripts
-- [ ] Tailwind CSS + shadcn/ui
-- [ ] TanStack Router (file-based) + TanStack Query
-- [ ] `packages/shared` set up as `@vidflare/shared` (Zod only)
+- [x] pnpm workspace with `apps/web` and `packages/shared`
+- [x] Scaffold `apps/web` with `pnpm create cloudflare@latest web --framework=react`
+- [x] Add `hono`, `drizzle-orm`, `drizzle-kit`, `zod`, `@hono/zod-validator`
+- [x] `vite.config.ts` with `react()` + `cloudflare()` (`@cloudflare/vite-plugin`)
+- [x] TypeScript strict, ESLint, Prettier; root `typecheck`, `lint`, `test` scripts
+- [x] Tailwind CSS + shadcn/ui
+- [x] TanStack Router (file-based) + TanStack Query
+- [x] `packages/shared` set up as `@vidflare/shared` (Zod only)
 
 **Local environment**
-- [ ] `vite dev` running the Worker with local D1, KV, R2, Queues and Durable Objects
-- [ ] `.dev.vars.example` committed; `.dev.vars` gitignored
-- [ ] Local D1 migrations + seed script (sample users, channels, videos)
-- [ ] Document which services point at `stage` locally (Stream, Turnstile) and how
+- [x] `vite dev` running the Worker with local D1, KV, R2, Queues and Durable Objects
+- [x] `.dev.vars.example` committed; `.dev.vars` gitignored
+- [x] Local D1 migrations + seed script (sample users, channels, videos)
+- [x] Document which services point at `stage` locally (Stream, Turnstile) and how
 
 **Cloudflare resources (`stage` and `production`)**
-- [ ] D1 `vidflare-db`, KV `CACHE`, R2 `vidflare-media`, Queue `stream-events`, per environment
-- [ ] `wrangler.jsonc` with all bindings, `nodejs_compat`, SPA assets config, `VideoStats` DO migration, `CF_VERSION_METADATA`, `ENVIRONMENT`
-- [ ] Enable Stream; API token with Stream:Edit
-- [ ] Secrets per environment: `STREAM_ACCOUNT_ID`, `STREAM_API_TOKEN`, `STREAM_WEBHOOK_SECRET`, `TURNSTILE_SECRET`, `AUTH_SECRET`, `SENTRY_DSN`
-- [ ] `wrangler types` generating `Env`
+- [x] D1 `vidflare-db`, KV `CACHE`, R2 `vidflare-media`, Queue `stream-events`, per environment
+- [x] `wrangler.jsonc` with all bindings, `nodejs_compat`, SPA assets config, `VideoStats` DO migration, `CF_VERSION_METADATA`, `ENVIRONMENT`
+- [x] Enable Stream; API token with Stream:Edit
+- [x] Secrets per environment: `STREAM_ACCOUNT_ID`, `STREAM_API_TOKEN`, `STREAM_WEBHOOK_SECRET`, `TURNSTILE_SECRET`, `AUTH_SECRET`, `SENTRY_DSN`
+- [x] `wrangler types` generating `Env`
 
 **Data model**
-- [ ] Drizzle schema: `users`, `sessions`, `channels`, `videos`, `likes`, `comments`, `subscriptions`
-- [ ] Indexes: home feed, channel videos, comments, `subscriptions (channel_id)`
-- [ ] Initial migration generated and applied locally
+- [x] Drizzle schema: `users`, `sessions`, `channels`, `videos`, `likes`, `comments`, `subscriptions`
+- [x] Indexes: home feed, channel videos, comments, `subscriptions (channel_id)`
+- [x] Initial migration generated and applied locally
 
 **API skeleton and auth**
-- [ ] Hono app under `/api` with chained routes and exported `AppType`
-- [ ] Middleware: request id + logger, JSON error handler, session loader, `requireUser`
-- [ ] Typed client `hc<AppType>` in `client/lib/api.ts`
-- [ ] Shared schemas for sign-up, login
-- [ ] `POST /api/auth/signup` (PBKDF2, user + channel + session in one `db.batch()`)
-- [ ] `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/me`
-- [ ] Session cookie: HttpOnly, Secure, SameSite=Lax
-- [ ] `/login` and `/signup` pages with `AuthForm`
+- [x] Hono app under `/api` with chained routes and exported `AppType`
+- [x] Middleware: request id + logger, JSON error handler, session loader, `requireUser`
+- [x] Typed client `hc<AppType>` in `client/lib/api.ts`
+- [x] Shared schemas for sign-up, login
+- [x] `POST /api/auth/signup` (PBKDF2, user + channel + session in one `db.batch()`)
+- [x] `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/me`
+- [x] Session cookie: HttpOnly, Secure, SameSite=Lax
+- [x] `/login` and `/signup` pages with `AuthForm`
 
 **CI/CD**
-- [ ] GitHub Actions: typecheck + lint + tests on every PR
-- [ ] Preview URL per PR via `wrangler versions upload`
-- [ ] On merge to main: `wrangler d1 migrations apply --remote` then `wrangler deploy`
+- [x] GitHub Actions: typecheck + lint + tests on every PR
+- [ ] On push (`dev` → stage, `main` → production): `wrangler d1 migrations apply --remote` then `wrangler deploy`
 
 **Sentry**
-- [ ] Worker: `@sentry/cloudflare`, `withSentry`, `sentryOptions(env)`, `captureException` in `onError`
-- [ ] React: `@sentry/react` init, `ErrorBoundary`, TanStack Router tracing, `tracePropagationTargets`
-- [ ] `setUser({ id })` on login, `setUser(null)` on logout
-- [ ] `@sentry/vite-plugin` source map upload in CI (`SENTRY_AUTH_TOKEN`), hidden source maps
+- [x] Worker: `@sentry/cloudflare`, `withSentry`, `sentryOptions(env)`, `captureException` in `onError`
+- [x] React: `@sentry/react` init, `ErrorBoundary`, TanStack Router tracing, `tracePropagationTargets`
+- [x] `setUser({ id })` on login, `setUser(null)` on logout
+- [x] `@sentry/vite-plugin` source map upload in CI (`SENTRY_AUTH_TOKEN`), hidden source maps
 
 **Exit criteria**
-- [ ] A user can sign up and log in on a stage URL
-- [ ] CI deploys a preview per PR
-- [ ] A test error and its trace show up in Sentry for stage
+- [x] A user can sign up and log in on a stage URL
+- [x] CI deploys stage on merge to `dev`
+- [x] A test error and its trace show up in Sentry for stage
 
 ## Phase 2: Upload and watch (weeks 3–4)
 
 **Upload**
 - [ ] `services/stream.ts`: direct creator upload, delete, status lookup
-- [ ] `POST /api/videos/uploads` (row in `uploading`, Stream URL with `maxDurationSeconds` + `meta.videoId`, Turnstile)
+- [ ] `POST /api/videos/uploads` (row in `uploading`, Stream URL with `maxDurationSeconds` + `meta: { env, videoId }`, Turnstile)
 - [ ] `POST /api/videos/:id/uploaded` (`processing` only `WHERE status = 'uploading'`)
 - [ ] `/upload` page: `UploadDropzone` with tus-js-client, progress bar, metadata form
 - [ ] Poll status until `ready` / `error`
 
 **Webhook and queue**
-- [ ] `POST /api/webhooks/stream`: verify `Webhook-Signature` HMAC, enqueue, return 200
-- [ ] Queue consumer: set `ready`/`error`, `duration_s`, `thumbnail_url`, `published_at`; idempotent
-- [ ] Configure the Stream webhook URL per environment
+- [ ] `POST /api/webhooks/stream`: verify `Webhook-Signature` HMAC, route by `meta.env` (`production` → `EVENTS`, `stage` → `STAGE_EVENTS`, else warn + drop), return 200
+- [ ] `STAGE_EVENTS` producer on `stream-events-stage` in the production env only; `wrangler types`
+- [ ] Queue consumer: set `ready`/`error`, `duration_s`, `thumbnail_url`, `published_at`; idempotent; unknown `stream_uid` logged and acked
+- [ ] Point the account's Stream webhook URL at production; store the returned secret as production's `STREAM_WEBHOOK_SECRET`
 - [ ] Recorded webhook payloads as test fixtures
 
 **Watch and feeds**
