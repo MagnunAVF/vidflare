@@ -69,7 +69,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 **Webhook and queue**
 - [x] `POST /api/webhooks/stream`: verify `Webhook-Signature` HMAC, route by `meta.env` (`production` → `EVENTS`, `stage` → `STAGE_EVENTS`, else warn + drop), return 200
 - [x] `STAGE_EVENTS` producer on `stream-events-stage` in the production env only; `wrangler types`
-- [ ] Queue consumer: set `ready`/`error`, `duration_s`, `thumbnail_url`, `published_at`; idempotent; unknown `stream_uid` logged and acked
+- [x] Queue consumer: set `ready`/`error`, `duration_s`, `thumbnail_url`, `published_at`; idempotent; unknown `stream_uid` logged and acked
 - [ ] Point the account's Stream webhook URL at production; store the returned secret as production's `STREAM_WEBHOOK_SECRET`
 - [x] Recorded webhook payloads as test fixtures
 
