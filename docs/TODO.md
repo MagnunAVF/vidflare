@@ -60,7 +60,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 ## Phase 2: Upload and watch (weeks 3–4)
 
 **Upload**
-- [ ] `services/stream.ts`: direct creator upload, delete, status lookup
+- [x] `services/stream.ts`: direct creator upload, delete, status lookup
 - [ ] `POST /api/videos/uploads` (row in `uploading`, Stream URL with `maxDurationSeconds` + `meta: { env, videoId }`, Turnstile)
 - [ ] `POST /api/videos/:id/uploaded` (`processing` only `WHERE status = 'uploading'`)
 - [ ] `/upload` page: `UploadDropzone` with tus-js-client, progress bar, metadata form
