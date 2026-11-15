@@ -9,6 +9,7 @@ import { auth } from './routes/auth'
 import { debug } from './routes/debug'
 import { me } from './routes/me'
 import { videoRoutes } from './routes/videos'
+import { webhooks } from './routes/webhooks'
 import { sentryOptions } from './sentry'
 import type { AppEnv } from './types'
 
@@ -30,6 +31,7 @@ const app = new Hono<AppEnv>()
   .route('/auth', auth)
   .route('/me', me)
   .route('/videos', videoRoutes)
+  .route('/webhooks', webhooks)
   .route('/debug', debug)
 
 export type AppType = typeof app
