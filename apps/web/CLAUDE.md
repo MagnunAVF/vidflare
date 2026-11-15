@@ -13,13 +13,15 @@ The single deployable: one Cloudflare Worker that serves the React SPA as static
 - `main` is `src/worker/index.ts`. Assets use `not_found_handling: "single-page-application"` and `run_worker_first: ["/api/*"]`. Keep both, or SPA routing or the API breaks.
 - `compatibility_flags` must include `nodejs_compat` (Sentry needs `AsyncLocalStorage`).
 - Bindings: `DB` (D1), `CACHE` (KV), `MEDIA` (R2), `EVENTS` (Queue producer on `stream-events`), `VIDEO_STATS` (Durable Object `VideoStats`), `CF_VERSION_METADATA` (version metadata), `ENVIRONMENT` var.
-- Every binding must be defined for both `stage` and `production`, with separate resources per environment.
+- Every binding must be defined for both `stage` and `production`, with separate resources per environment. Bindings, `vars` and `secrets` aren't inherited by `env` entries, so a binding change touches the top level (local) and both envs.
+- Resources live in one account, suffixed per env (`vidflare-db-stage`, `vidflare-media-production`, ...); Workers are `vidflare-stage` and `vidflare-production`.
+- The Vite plugin bakes the environment into the build: deploy with `pnpm deploy:stage` / `pnpm deploy:production` (`CLOUDFLARE_ENV=<env>` at build time). A plain `wrangler deploy` after a plain build would ship the local config. `wrangler d1 ...` commands read `wrangler.jsonc` directly, so they take `--env`.
 - New Durable Object classes need a new `migrations` tag (`new_sqlite_classes`). Never edit or reuse an existing tag.
 - After any binding change, run `wrangler types` and commit the regenerated `Env` type.
 
 ## Secrets
 
-Runtime secrets (`wrangler secret put`, per environment): `STREAM_ACCOUNT_ID`, `STREAM_API_TOKEN`, `STREAM_WEBHOOK_SECRET`, `TURNSTILE_SECRET`, `AUTH_SECRET`, `SENTRY_DSN`. For local dev use `.dev.vars`, which stays gitignored.
+Runtime secrets (`wrangler secret put`, per environment): `STREAM_ACCOUNT_ID`, `STREAM_API_TOKEN`, `STREAM_WEBHOOK_SECRET`, `TURNSTILE_SECRET`, `AUTH_SECRET`, `SENTRY_DSN`. For local dev use `.dev.vars`, which stays gitignored. Remote resource, Stream token and secret setup steps are in [docs/CloudflareSetup.md](../../docs/CloudflareSetup.md); keep it in sync when resources or secrets change.
 
 ## Migrations
 

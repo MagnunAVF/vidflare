@@ -31,10 +31,10 @@ Tests (`pnpm test`) use the same bindings, isolated per test, with migrations ap
 
 | Service | Why it can't run locally | How it points at stage |
 | --- | --- | --- |
-| Stream API: direct uploads, encoding, status, delete | Hosted service; no local emulator | `STREAM_ACCOUNT_ID` + `STREAM_API_TOKEN` in `.dev.vars` are the **stage** account's (token with Stream:Edit). Uploads go from your browser straight to stage Stream and show up in its library. |
-| Stream webhooks | Stream calls one webhook URL per account, which is the stage Worker, so it can't reach localhost | Don't repoint the stage webhook. Locally, send recorded payloads to `POST /api/webhooks/stream`, signed with your local `STREAM_WEBHOOK_SECRET`, or use the studio re-check, which queries the Stream API (both arrive in Phase 2). |
-| Turnstile verification | Verified by Cloudflare's siteverify API | By default `.dev.vars` uses Cloudflare's [test secret](https://developers.cloudflare.com/turnstile/troubleshooting/testing/) that always passes, so no stage keys are needed. To exercise a real challenge, use the stage widget's secret and add `localhost` to that widget's hostnames. |
-| Sentry (optional) | Hosted service | Leave `SENTRY_DSN` empty to keep it off, or use the stage DSN. |
+| Stream API: direct uploads, encoding, status, delete | Hosted service; no local emulator | `.dev.vars` uses the account id and **stage's** `STREAM_API_TOKEN` (Stream:Edit). The Stream library is shared by every environment, so local uploads land in it tagged `meta.env = "local"`. |
+| Stream webhooks | The account's single webhook goes to production, which routes by `meta.env` and drops `local` events | Never repoint the account webhook. Locally, send recorded payloads to `POST /api/webhooks/stream`, signed with your local `STREAM_WEBHOOK_SECRET`, or use the studio re-check, which queries the Stream API (both arrive in Phase 2). See "Stream across environments" in the roadmap. |
+| Turnstile verification | Verified by Cloudflare's siteverify API | By default `.dev.vars` uses Cloudflare's [test secret](https://developers.cloudflare.com/turnstile/troubleshooting/testing/) that always passes, and in dev the sign-up widget falls back to the matching test site key, so no stage keys are needed. To exercise a real challenge, use the stage widget's secret in `.dev.vars`, its site key as `VITE_TURNSTILE_SITE_KEY` (in `apps/web/.env.local`), and add `localhost` to that widget's hostnames. |
+| Sentry (optional) | Hosted service | Off by default: `SENTRY_DSN` (Worker, `.dev.vars`) and `VITE_SENTRY_DSN` (client, `apps/web/.env.local`) are empty. Set them to the stage DSN to test reporting; events are tagged `environment: local`. Source maps are never built locally. See [SentrySetup.md](SentrySetup.md). |
 
 Stream isn't a Worker binding (the Worker calls its REST API with a token), so it's switched by credentials, not by `remote: true`.
 

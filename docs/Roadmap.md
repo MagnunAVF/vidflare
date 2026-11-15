@@ -46,7 +46,7 @@ One Worker serves both the React SPA (static assets) and the Hono API under `/ap
 | Bot protection | Turnstile | Sign-up, comment, upload |
 | Observability | Sentry (`@sentry/cloudflare`, `@sentry/react`, `@sentry/vite-plugin`) | Errors, tracing, logs, metrics, replays on error; see Observability with Sentry |
 | Testing | Vitest + `@cloudflare/vitest-plugin`, Playwright | Runs tests inside the Workers runtime |
-| CI/CD | GitHub Actions + Wrangler | Preview per PR, deploy on merge, Sentry release + source map upload |
+| CI/CD | GitHub Actions + Wrangler | Checks on every PR, deploy on merge (`dev` → stage, `main` → production), Sentry release + source map upload |
 
 ## Repository structure and setup
 
@@ -80,9 +80,9 @@ vidflare/
 
 1. `pnpm create cloudflare@latest web --framework=react` (Vite + Workers template), then add `hono`, `drizzle-orm`, `zod`, `@hono/zod-validator`.
 2. In `vite.config.ts` add `cloudflare()` from `@cloudflare/vite-plugin` next to `react()`.
-3. Create resources: `wrangler d1 create vidflare-db`, `wrangler kv namespace create CACHE`, `wrangler r2 bucket create vidflare-media`, `wrangler queues create stream-events`.
+3. Create resources per environment (one account, names suffixed with the env): `wrangler d1 create vidflare-db-<env>`, `wrangler kv namespace create CACHE-<env>`, `wrangler r2 bucket create vidflare-media-<env>`, `wrangler queues create stream-events-<env>`, for `stage` and `production` (`scripts/setup-cloudflare.sh` does this). Locally the unsuffixed names are simulated by Miniflare.
 4. Enable Stream in the dashboard; create an API token with Stream:Edit; store `STREAM_ACCOUNT_ID`, `STREAM_API_TOKEN`, `STREAM_WEBHOOK_SECRET`, `TURNSTILE_SECRET`, `AUTH_SECRET` with `wrangler secret put`.
-5. Configure the Stream webhook URL to `https://<domain>/api/webhooks/stream`.
+5. Configure the account's single Stream webhook URL to the production Worker, `https://<production domain>/api/webhooks/stream`, which routes events to each environment (see Stream across environments).
 6. Run `wrangler types` to generate the `Env` type used by `new Hono<{ Bindings: Env }>()`.
 
 **`wrangler.jsonc` (essentials)**
@@ -106,6 +106,8 @@ vidflare/
   "observability": { "enabled": true }
 }
 ```
+
+The top level above is the local environment. `env.stage` and `env.production` repeat every binding, `vars` (`ENVIRONMENT`), `version_metadata` (`CF_VERSION_METADATA`) and `secrets` with their own suffixed resources, since bindings aren't inherited. With the Vite plugin the environment is picked at build time (`CLOUDFLARE_ENV=stage vite build`, then `wrangler deploy`), not with `wrangler deploy --env`.
 
 ## Data model (D1)
 
@@ -215,10 +217,33 @@ sequenceDiagram
 
 **Upload details**
 
-1. `POST /api/videos/uploads` inserts a `videos` row with status `uploading`, then calls Stream's direct creator upload API with `maxDurationSeconds` and `meta.videoId`, and stores the returned `uid`.
+1. `POST /api/videos/uploads` inserts a `videos` row with status `uploading`, then calls Stream's direct creator upload API with `maxDurationSeconds` and `meta: { env: ENVIRONMENT, videoId }`, and stores the returned `uid`.
 2. The browser uploads with tus-js-client to the returned URL, then calls `POST /api/videos/:id/uploaded`, which sets status to `processing` only `WHERE status = 'uploading'`. This way a webhook that arrives first and sets `ready` is never overwritten.
-3. `POST /api/webhooks/stream` verifies the `Webhook-Signature` HMAC, then enqueues the event; it returns 200 fast.
+3. `POST /api/webhooks/stream` verifies the `Webhook-Signature` HMAC, then enqueues the event to the queue of the environment in `meta.env` (see Stream across environments); it returns 200 fast.
 4. The queue consumer sets `ready` (or `error`), stores `duration_s` and `thumbnail_url`, sets `published_at`, and deletes the cached home feed and channel keys in KV.
+
+**Stream across environments**
+
+`stage` and `production` live in one Cloudflare account and share its Stream library. Stream allows a single webhook URL (and signing secret) per account, so events are told apart by a tag on each upload and routed by the production Worker:
+
+```mermaid
+flowchart LR
+    S[Stream library<br/>shared by all envs] -->|single account webhook| P[vidflare-production<br/>POST /api/webhooks/stream]
+    P -->|meta.env = production| QP[stream-events-production]
+    P -->|meta.env = stage| QS[stream-events-stage]
+    P -->|meta.env = local or missing| X[warn log, 200, dropped]
+    QP --> CP[production consumer<br/>prod D1 / KV]
+    QS --> CS[stage consumer<br/>stage D1 / KV]
+```
+
+- **Tag every upload.** Direct uploads set `meta.env` to the creating Worker's `ENVIRONMENT` (`local`, `stage` or `production`) next to `meta.videoId`.
+- **One webhook, on production.** The account webhook points at `https://<production domain>/api/webhooks/stream`. Only production needs the real `STREAM_WEBHOOK_SECRET`; stage and local use their own value just for replayed payloads.
+- **Route, don't process.** After the signature check, the handler sends the event to `EVENTS` when `meta.env` is `production`, or to `STAGE_EVENTS` when it is `stage`. `STAGE_EVENTS` is a second Queue producer bound only in the production config, on `stream-events-stage`. `local` or untagged events get a `warn` log and a 200, and nothing else. Keep the handler this small; all processing lives in the consumer.
+- **Each environment processes only its own events.** Each consumer looks the video up by `stream_uid` in its own D1. An unknown uid is logged and acked, so a mis-routed event can't touch another environment's data. Stage's consumer, D1, KV and anything it connects to are the same code as production's, with stage's own resources.
+- **Each environment owns only its own videos.** Deletes, the studio re-check and the nightly reconcile act on rows in that environment's D1 and never scan the whole library. Stage's reconcile also deletes stage-tagged Stream videos that no longer have a row. Each environment has its own `STREAM_API_TOKEN` (Stream:Edit on the same account) so it can be rotated alone.
+- **Local** uploads go to the shared library tagged `local` and receive no webhooks. Locally, replay recorded payloads or use the studio re-check.
+
+Trade-offs, accepted: stage gets no webhooks while production is down (the re-check and reconcile cover it). A change to the webhook handler only reaches stage once it is deployed to production, which is why the handler stays minimal and is tested with recorded payloads. Stage and local uploads count toward the same Stream storage and bill, so the upload length cap applies in every environment.
 
 **Playback**
 
@@ -268,7 +293,7 @@ The MVP ships in four two-week phases, each ending with a demo on the stage envi
 
 | Phase | Weeks | Deliverables |
 | --- | --- | --- |
-| Foundation | 1–2 | Vite + Worker monorepo; D1 schema and migrations; auth and sessions; CI with preview URLs; Sentry |
+| Foundation | 1–2 | Vite + Worker monorepo; D1 schema and migrations; auth and sessions; CI deploying stage and production; Sentry |
 | Upload and watch | 3–4 | Direct Stream upload; webhook and Queue; watch page and player; home feed and studio |
 | Social | 5–6 | Likes and comments; view counter (Durable Object); channels and subscribe; subscriptions feed |
 | Launch prep | 7–8 | Search (FTS5); KV cache and Turnstile; E2E tests and alerts; production deploy → **Public beta** |
@@ -288,7 +313,7 @@ gantt
 
 **Exit criteria per phase**
 
-- [ ] Foundation: a user can sign up and log in on a stage URL; CI deploys a preview per PR; a test error and its trace show up in Sentry for stage.
+- [ ] Foundation: a user can sign up and log in on a stage URL; CI deploys stage on merge to `dev`; a test error and its trace show up in Sentry for stage.
 - [ ] Upload and watch: a 5-minute video uploads, turns `ready` via webhook, and plays on the watch page.
 - [ ] Social: likes, comments, views and subscriptions work and counters stay correct after a DO flush.
 - [ ] Launch prep: E2E suite green, Sentry alerts and dashboards in place, source maps resolving, production deployed behind your domain.
@@ -318,13 +343,18 @@ Sentry is the single place for errors, traces, logs and metrics across the React
 // worker/sentry.ts
 import * as Sentry from '@sentry/cloudflare'
 
-export const sentryOptions = (env: Env) => ({
-  dsn: env.SENTRY_DSN,
-  environment: env.ENVIRONMENT,              // 'stage' | 'production'
-  release: env.CF_VERSION_METADATA.id,       // ties errors to a Worker version
+export const sentryOptions = (env: Env): CloudflareOptions => ({
+  dsn: env.SENTRY_DSN || undefined,          // empty locally → SDK off
+  environment: env.ENVIRONMENT,              // 'local' | 'stage' | 'production'
+  // CI deploys with `wrangler deploy --tag <git sha>`; the client build uses the same sha,
+  // so both sides report one release. Falls back to the version id.
+  release: env.CF_VERSION_METADATA.tag || env.CF_VERSION_METADATA.id,
   tracesSampleRate: env.ENVIRONMENT === 'production' ? 0.2 : 1.0,
-  enableLogs: true,
-  sendDefaultPii: false,
+  // SDK v11 replaced `sendDefaultPii` with `dataCollection`, which collects cookies, headers,
+  // bodies and query strings by default. Turn all of that off; only the user id is set.
+  dataCollection: { userInfo: false, cookies: false, httpBodies: [], urlQueryParams: false,
+    httpHeaders: { request: { allow: ['content-type', 'user-agent', 'cf-ray'] },
+                   response: { allow: ['content-type', 'x-request-id'] } } },
 })
 
 // worker/index.ts
@@ -345,26 +375,28 @@ app.onError((err, c) => {
 **React setup**
 
 ```ts
-// client/main.tsx
+// client/lib/sentry.ts — initSentry(router), called from main.tsx; no VITE_SENTRY_DSN → no SDK
 import * as Sentry from '@sentry/react'
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
-  environment: import.meta.env.MODE,
-  release: import.meta.env.VITE_RELEASE,
+  environment: import.meta.env.VITE_ENVIRONMENT,  // from CLOUDFLARE_ENV in vite.config.ts
+  release: import.meta.env.VITE_RELEASE,          // git sha, same as the Worker's deploy tag
   integrations: [
     Sentry.tanstackRouterBrowserTracingIntegration(router),  // route-pattern transaction names
-    Sentry.replayIntegration({ maskAllText: true }),
+    Sentry.replayIntegration({ maskAllText: true, blockAllMedia: true }),
   ],
-  tracesSampleRate: 0.2,
-  tracePropagationTargets: [/^\/api\//],  // continue traces into the Worker
+  tracesSampleRate: environment === 'production' ? 0.2 : 1.0,
+  // continue traces into the Worker (relative and absolute same-origin /api URLs)
+  tracePropagationTargets: [/^\/api\//, new RegExp(`^${origin}/api/`)],
   replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 1.0,
-  enableLogs: true,
+  dataCollection: { userInfo: false, cookies: false, httpHeaders: false, httpBodies: [],
+    urlQueryParams: false },
 })
 ```
 
-- Wrap the app root in `Sentry.ErrorBoundary` with a friendly fallback page.
+- Wrap the app root in `Sentry.ErrorBoundary` with a friendly fallback page. Route errors are caught by the router, so also set `defaultOnCatch` (captureException) and `defaultErrorComponent` (same fallback).
 - On login call `Sentry.setUser({ id })`; on logout `Sentry.setUser(null)`. Never send email or passwords.
 
 **Custom instrumentation**
@@ -408,8 +440,8 @@ Sentry.init({
 **Environments and deployment**
 
 - `wrangler dev` / `vite dev` locally with local bindings; `remote: true` only for Stream calls.
-- Two Cloudflare environments: `stage` and `production`, each with its own D1, KV, Queue and Stream webhook secret.
-- GitHub Actions: typecheck + lint + tests on every PR, `wrangler versions upload` for a preview URL, `wrangler d1 migrations apply --remote` then `wrangler deploy` on merge to main.
+- Two Cloudflare environments in one account: `stage` and `production`, each with its own D1, KV, R2 and Queue. They share the account's Stream library and its single webhook, which production routes by `meta.env` (see Stream across environments).
+- GitHub Actions: typecheck + lint + tests on every PR, and on push `wrangler d1 migrations apply --remote` then `wrangler deploy`: `dev` → stage, `main` → production.
 - Alerting and dashboards run in Sentry (see Observability with Sentry); Workers Logs stays on as a fallback.
 
 **Cost drivers** (check current pricing before launch)

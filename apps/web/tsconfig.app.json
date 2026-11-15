@@ -10,5 +10,8 @@
       "@/*": ["./src/client/*"]
     }
   },
-  "include": ["src/client"]
+  "include": ["src/client"],
+  // `import type { AppType } from '../../worker'` resolves to the worker project's emitted
+  // declarations instead of its source.
+  "references": [{ "path": "./tsconfig.worker.json" }]
 }

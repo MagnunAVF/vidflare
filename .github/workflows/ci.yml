@@ -1,0 +1,47 @@
+# Typecheck, lint, tests and build. Runs on every PR and push to main, and is reused by
+# deploy-stage.yml and deploy-production.yml so nothing ships without passing it. Needs no
+# secrets.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Typecheck, lint, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      # Version comes from "packageManager" in package.json.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm format:check
+
+      # Includes `wrangler types --check`: fails if Env is stale against wrangler.jsonc.
+      - run: pnpm typecheck
+
+      - run: pnpm lint
+
+      # Worker tests run in workerd with local D1/KV/R2/Queues/DO; no Cloudflare account needed.
+      - run: pnpm test
+
+      - run: pnpm --filter web build
