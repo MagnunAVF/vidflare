@@ -79,7 +79,7 @@ A wrong or missing token only logs upload errors; the deploy still succeeds, but
 After the first deploy to stage:
 
 1. **Releases**: Sentry → Releases shows the git sha of the deploy, with source map artifacts attached.
-2. **Error**: trigger an error on stage (the Phase 1 exit criterion; a test-error route for local and stage is planned for this). The issue should show `environment: stage`, the release sha, a readable (source-mapped) stack trace, and only `user.id` when signed in.
+2. **Error**: sign in on the stage URL, then open `/api/debug/error` in the same browser (the Phase 1 exit criterion). It answers `500 internal_error` and reports a `Sentry test error (stage, request <id>)` issue. The route needs a session, works on local and stage, and is a 404 in production. The issue should show `environment: stage`, the release sha, a readable (source-mapped) stack trace, and only `user.id`.
 3. **Trace**: open the issue's trace. A browser page load should continue into the Worker request (`GET /api/...`) in the same trace.
 4. **Nothing private**: in the event's request section there should be no cookie, body or query string, and no email anywhere.
 

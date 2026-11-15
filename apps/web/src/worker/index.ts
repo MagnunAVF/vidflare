@@ -6,6 +6,7 @@ import { notFound, onError } from './lib/errors'
 import { requestContext } from './middleware/request-context'
 import { sessionLoader } from './middleware/session'
 import { auth } from './routes/auth'
+import { debug } from './routes/debug'
 import { me } from './routes/me'
 import { sentryOptions } from './sentry'
 import type { AppEnv } from './types'
@@ -27,6 +28,7 @@ const app = new Hono<AppEnv>()
   .get('/health', (c) => c.json({ ok: true }))
   .route('/auth', auth)
   .route('/me', me)
+  .route('/debug', debug)
 
 export type AppType = typeof app
 

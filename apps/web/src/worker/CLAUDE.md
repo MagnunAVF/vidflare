@@ -5,7 +5,7 @@ Hono app on Cloudflare Workers. It also exports the queue consumer, the `schedul
 ## Structure
 
 - `index.ts`: builds the app, chains routes, exports `AppType`, the default handler (`fetch`, `queue`, `scheduled`) wrapped in `Sentry.withSentry`, and `VideoStats` wrapped in `Sentry.instrumentDurableObjectWithSentry`
-- `routes/`: `auth`, `videos`, `channels`, `comments`, `feed`, `search`, `studio`, `me`, `webhooks`
+- `routes/`: `auth`, `videos`, `channels`, `comments`, `feed`, `search`, `studio`, `me`, `webhooks`, `debug` (`GET /debug/error` throws on purpose to verify Sentry; signed-in only, 404 in production)
 - `middleware/`: request id + logger, error handler, session loader, `requireUser`, rate limit
 - `db/schema.ts`: Drizzle schema (the source of truth for migrations)
 - `services/stream.ts`: Stream API client (direct upload, delete, status lookup)
