@@ -21,10 +21,10 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] Document which services point at `stage` locally (Stream, Turnstile) and how
 
 **Cloudflare resources (`stage` and `production`)**
-- [ ] D1 `vidflare-db`, KV `CACHE`, R2 `vidflare-media`, Queue `stream-events`, per environment
+- [x] D1 `vidflare-db`, KV `CACHE`, R2 `vidflare-media`, Queue `stream-events`, per environment
 - [x] `wrangler.jsonc` with all bindings, `nodejs_compat`, SPA assets config, `VideoStats` DO migration, `CF_VERSION_METADATA`, `ENVIRONMENT`
-- [ ] Enable Stream; API token with Stream:Edit
-- [ ] Secrets per environment: `STREAM_ACCOUNT_ID`, `STREAM_API_TOKEN`, `STREAM_WEBHOOK_SECRET`, `TURNSTILE_SECRET`, `AUTH_SECRET`, `SENTRY_DSN`
+- [x] Enable Stream; API token with Stream:Edit
+- [x] Secrets per environment: `STREAM_ACCOUNT_ID`, `STREAM_API_TOKEN`, `STREAM_WEBHOOK_SECRET`, `TURNSTILE_SECRET`, `AUTH_SECRET`, `SENTRY_DSN`
 - [x] `wrangler types` generating `Env`
 
 **Data model**

@@ -66,13 +66,11 @@
         {
           "binding": "DB",
           "database_name": "vidflare-db-stage",
-          "database_id": "<stage D1 id from scripts/setup-cloudflare.sh>",
+          "database_id": "7156f918-6a91-41e5-bb47-8894f1154fd4",
           "migrations_dir": "migrations",
         },
       ],
-      "kv_namespaces": [
-        { "binding": "CACHE", "id": "<stage KV id from scripts/setup-cloudflare.sh>" },
-      ],
+      "kv_namespaces": [{ "binding": "CACHE", "id": "55279f02bfd5427fa0fba6a5545c663e" }],
       "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "vidflare-media-stage" }],
       "queues": {
         "producers": [{ "binding": "EVENTS", "queue": "stream-events-stage" }],
@@ -101,13 +99,11 @@
         {
           "binding": "DB",
           "database_name": "vidflare-db-production",
-          "database_id": "<production D1 id from scripts/setup-cloudflare.sh>",
+          "database_id": "14068bfc-7c98-40e0-ac86-20675d9239ba",
           "migrations_dir": "migrations",
         },
       ],
-      "kv_namespaces": [
-        { "binding": "CACHE", "id": "<production KV id from scripts/setup-cloudflare.sh>" },
-      ],
+      "kv_namespaces": [{ "binding": "CACHE", "id": "27cc632987c24f938b689bab86f22923" }],
       "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "vidflare-media-production" }],
       "queues": {
         "producers": [{ "binding": "EVENTS", "queue": "stream-events-production" }],
