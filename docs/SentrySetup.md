@@ -70,7 +70,7 @@ Repository **Settings → Secrets and variables → Actions**:
 | Variable | `STAGE_SENTRY_DSN` | DSN for stage (step 2) |
 | Variable | `PRODUCTION_SENTRY_DSN` | DSN for production (step 2) |
 
-What CI then does on each deploy (`.github/workflows/deploy-stage.yml` and `deploy-production.yml`): builds with `VITE_SENTRY_DSN` and `VITE_RELEASE=<git sha>`, generates hidden source maps, uploads them for the client and Worker under that release, deletes the client maps so they're never served, and deploys the Worker with `--tag <git sha>` so it reports the same release. PR previews report to stage under release `pr-<number>` and upload no source maps.
+What CI then does on each deploy (`.github/workflows/deploy-stage.yml` and `deploy-production.yml`): builds with `VITE_SENTRY_DSN` and `VITE_RELEASE=<git sha>`, generates hidden source maps, uploads them for the client and Worker under that release, deletes the client maps so they're never served, and deploys the Worker with `--tag <git sha>` so it reports the same release.
 
 A wrong or missing token only logs upload errors; the deploy still succeeds, but stack traces stay minified. Check the deploy log for `sentry-vite-plugin` errors after the first run.
 

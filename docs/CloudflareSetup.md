@@ -86,11 +86,10 @@ Normally you don't deploy by hand: CI does it (next section).
 | Workflow | Trigger | Does | Needs |
 | --- | --- | --- | --- |
 | `ci.yml` | every PR, push to main | format check, typecheck, lint, tests, build | nothing |
-| `preview.yml` | PRs from this repo | uploads a version of `vidflare-stage` with alias `pr-<n>` and comments the preview URL | secrets + `STAGE_TURNSTILE_SITE_KEY` |
 | `deploy-stage.yml` | push to `dev` | `ci.yml`, then stage's remote D1 migrations, then deploy `vidflare-stage` | everything below (stage values) |
 | `deploy-production.yml` | push to `main` | `ci.yml`, then production's remote D1 migrations, then deploy `vidflare-production` | everything below (production values) |
 
-`preview.yml` and both deploy workflows skip with a notice until the Cloudflare secrets exist, and each deploy workflow stops while `wrangler.jsonc` still has placeholder ids for its environment (step 2).
+There are no per-PR preview deploys: the Worker has a Durable Object, so Cloudflare doesn't generate preview URLs for its versions, and stage already plays that role. Both deploy workflows skip with a notice until the Cloudflare secrets exist, and each deploy workflow stops while `wrangler.jsonc` still has placeholder ids for its environment (step 2).
 
 1. **API token for CI.** Dashboard → **My Profile → API Tokens → Create Token**, starting from the *Edit Cloudflare Workers* template, then add *Account · D1 · Edit* and *Account · Queues · Edit* (needed for remote migrations and the queue consumer). Limit it to this account.
 2. **Repository secrets** (Settings → Secrets and variables → Actions → Secrets): `CLOUDFLARE_API_TOKEN` (step 1), `CLOUDFLARE_ACCOUNT_ID`, and `SENTRY_AUTH_TOKEN` (a Sentry organization auth token with release and source map upload scope; CI only, never a Worker secret).
@@ -99,7 +98,7 @@ Normally you don't deploy by hand: CI does it (next section).
    - `STAGE_SENTRY_DSN`, `PRODUCTION_SENTRY_DSN`: the client DSN for each environment (public; usually the same value as that environment's `SENTRY_DSN` Worker secret)
    - `SENTRY_ORG`, `SENTRY_PROJECT`: where source maps are uploaded (all Sentry values: [SentrySetup.md](SentrySetup.md))
 
-Each deploy uses the git sha as the Sentry release everywhere: the client build reports it (`VITE_RELEASE`), the Worker is deployed with `--tag <sha>` (read back from `CF_VERSION_METADATA.tag`), and the Sentry Vite plugin uploads hidden source maps for both bundles under that release, then deletes the client maps so they are never served. Builds without `SENTRY_AUTH_TOKEN` (local, previews) produce no source maps. A wrong token only logs upload errors; it doesn't fail the deploy.
+Each deploy uses the git sha as the Sentry release everywhere: the client build reports it (`VITE_RELEASE`), the Worker is deployed with `--tag <sha>` (read back from `CF_VERSION_METADATA.tag`), and the Sentry Vite plugin uploads hidden source maps for both bundles under that release, then deletes the client maps so they are never served. Builds without `SENTRY_AUTH_TOKEN` (local) produce no source maps. A wrong token only logs upload errors; it doesn't fail the deploy.
 4. **Environments** (Settings → Environments): `stage` and `production` are created on the first run. Add required reviewers to `production` if production deploys should wait for an approval.
 
-Previews run the PR's code against stage's resources and don't apply the PR's migrations, so a PR that adds a migration only works fully on stage after it merges. Migrations run before each deploy, so every migration must also work with the code that is still live.
+Migrations run before each deploy, so every migration must also work with the code that is still live.

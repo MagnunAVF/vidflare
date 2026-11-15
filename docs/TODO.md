@@ -44,7 +44,6 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 
 **CI/CD**
 - [x] GitHub Actions: typecheck + lint + tests on every PR
-- [ ] Preview URL per PR via `wrangler versions upload`
 - [ ] On push (`dev` → stage, `main` → production): `wrangler d1 migrations apply --remote` then `wrangler deploy`
 
 **Sentry**
@@ -55,7 +54,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 
 **Exit criteria**
 - [ ] A user can sign up and log in on a stage URL
-- [ ] CI deploys a preview per PR
+- [ ] CI deploys stage on merge to `dev`
 - [ ] A test error and its trace show up in Sentry for stage
 
 ## Phase 2: Upload and watch (weeks 3–4)

@@ -46,7 +46,7 @@ One Worker serves both the React SPA (static assets) and the Hono API under `/ap
 | Bot protection | Turnstile | Sign-up, comment, upload |
 | Observability | Sentry (`@sentry/cloudflare`, `@sentry/react`, `@sentry/vite-plugin`) | Errors, tracing, logs, metrics, replays on error; see Observability with Sentry |
 | Testing | Vitest + `@cloudflare/vitest-plugin`, Playwright | Runs tests inside the Workers runtime |
-| CI/CD | GitHub Actions + Wrangler | Preview per PR, deploy on merge, Sentry release + source map upload |
+| CI/CD | GitHub Actions + Wrangler | Checks on every PR, deploy on merge (`dev` → stage, `main` → production), Sentry release + source map upload |
 
 ## Repository structure and setup
 
@@ -293,7 +293,7 @@ The MVP ships in four two-week phases, each ending with a demo on the stage envi
 
 | Phase | Weeks | Deliverables |
 | --- | --- | --- |
-| Foundation | 1–2 | Vite + Worker monorepo; D1 schema and migrations; auth and sessions; CI with preview URLs; Sentry |
+| Foundation | 1–2 | Vite + Worker monorepo; D1 schema and migrations; auth and sessions; CI deploying stage and production; Sentry |
 | Upload and watch | 3–4 | Direct Stream upload; webhook and Queue; watch page and player; home feed and studio |
 | Social | 5–6 | Likes and comments; view counter (Durable Object); channels and subscribe; subscriptions feed |
 | Launch prep | 7–8 | Search (FTS5); KV cache and Turnstile; E2E tests and alerts; production deploy → **Public beta** |
@@ -313,7 +313,7 @@ gantt
 
 **Exit criteria per phase**
 
-- [ ] Foundation: a user can sign up and log in on a stage URL; CI deploys a preview per PR; a test error and its trace show up in Sentry for stage.
+- [ ] Foundation: a user can sign up and log in on a stage URL; CI deploys stage on merge to `dev`; a test error and its trace show up in Sentry for stage.
 - [ ] Upload and watch: a 5-minute video uploads, turns `ready` via webhook, and plays on the watch page.
 - [ ] Social: likes, comments, views and subscriptions work and counters stay correct after a DO flush.
 - [ ] Launch prep: E2E suite green, Sentry alerts and dashboards in place, source maps resolving, production deployed behind your domain.
@@ -441,7 +441,7 @@ Sentry.init({
 
 - `wrangler dev` / `vite dev` locally with local bindings; `remote: true` only for Stream calls.
 - Two Cloudflare environments in one account: `stage` and `production`, each with its own D1, KV, R2 and Queue. They share the account's Stream library and its single webhook, which production routes by `meta.env` (see Stream across environments).
-- GitHub Actions: typecheck + lint + tests on every PR, `wrangler versions upload` for a preview URL, and on push `wrangler d1 migrations apply --remote` then `wrangler deploy`: `dev` → stage, `main` → production.
+- GitHub Actions: typecheck + lint + tests on every PR, and on push `wrangler d1 migrations apply --remote` then `wrangler deploy`: `dev` → stage, `main` → production.
 - Alerting and dashboards run in Sentry (see Observability with Sentry); Workers Logs stays on as a fallback.
 
 **Cost drivers** (check current pricing before launch)

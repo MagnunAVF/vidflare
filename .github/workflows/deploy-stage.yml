@@ -1,5 +1,6 @@
 # Deploy stage: on push to dev, CI checks → stage's D1 migrations → deploy vidflare-stage.
-# (Production has its own workflow, deploy-production.yml; PR previews are in preview.yml.)
+# Stage is where changes are tried before production; there are no per-PR previews.
+# (Production has its own workflow, deploy-production.yml.)
 #
 # Migrations run before the new code is deployed, so each one must work with the code that
 # is still live (add columns/tables first, remove them in a later release).
