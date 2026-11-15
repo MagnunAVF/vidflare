@@ -11,3 +11,11 @@ export const HANDLE_MAX = 30
 export const HANDLE_PATTERN = /^[a-z0-9_]+$/
 
 export const CHANNEL_NAME_MAX = 50
+
+export const VIDEO_TITLE_MAX = 100
+export const VIDEO_DESCRIPTION_MAX = 5000
+
+// Stream bills every environment's uploads to one account, so cap them everywhere.
+// Stream itself rejects a video longer than this (maxDurationSeconds on the upload).
+export const UPLOAD_MAX_DURATION_S = 15 * 60
+export const UPLOAD_MAX_BYTES = 5 * 1024 ** 3 // 5 GiB

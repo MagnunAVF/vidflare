@@ -217,7 +217,7 @@ sequenceDiagram
 
 **Upload details**
 
-1. `POST /api/videos/uploads` inserts a `videos` row with status `uploading`, then calls Stream's direct creator upload API with `maxDurationSeconds` and `meta: { env: ENVIRONMENT, videoId }`, and stores the returned `uid`.
+1. `POST /api/videos/uploads` takes the metadata and the file size, generates the video id, creates a resumable (tus) direct creator upload in Stream with `maxDurationSeconds` and `meta: { env: ENVIRONMENT, videoId }`, then inserts the `videos` row with status `uploading` and the returned `uid` in one write. If the insert fails, the Stream video is deleted. It returns the one-time tus URL, which the browser uploads to directly.
 2. The browser uploads with tus-js-client to the returned URL, then calls `POST /api/videos/:id/uploaded`, which sets status to `processing` only `WHERE status = 'uploading'`. This way a webhook that arrives first and sets `ready` is never overwritten.
 3. `POST /api/webhooks/stream` verifies the `Webhook-Signature` HMAC, then enqueues the event to the queue of the environment in `meta.env` (see Stream across environments); it returns 200 fast.
 4. The queue consumer sets `ready` (or `error`), stores `duration_s` and `thumbnail_url`, sets `published_at`, and deletes the cached home feed and channel keys in KV.

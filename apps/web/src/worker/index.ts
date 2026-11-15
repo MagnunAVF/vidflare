@@ -8,6 +8,7 @@ import { sessionLoader } from './middleware/session'
 import { auth } from './routes/auth'
 import { debug } from './routes/debug'
 import { me } from './routes/me'
+import { videoRoutes } from './routes/videos'
 import { sentryOptions } from './sentry'
 import type { AppEnv } from './types'
 
@@ -28,6 +29,7 @@ const app = new Hono<AppEnv>()
   .get('/health', (c) => c.json({ ok: true }))
   .route('/auth', auth)
   .route('/me', me)
+  .route('/videos', videoRoutes)
   .route('/debug', debug)
 
 export type AppType = typeof app
