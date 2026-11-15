@@ -16,7 +16,8 @@
     "db:setup:local": "pnpm db:migrate:local && pnpm db:seed:local",
     "deploy:stage": "CLOUDFLARE_ENV=stage pnpm run build && wrangler deploy",
     "deploy:production": "CLOUDFLARE_ENV=production pnpm run build && wrangler deploy",
-    "cf:setup": "bash scripts/setup-cloudflare.sh"
+    "cf:setup": "bash scripts/setup-cloudflare.sh",
+    "webhook:replay": "node scripts/replay-stream-webhook.mjs"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",

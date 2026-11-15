@@ -38,7 +38,7 @@ export default defineConfig([
     rules: { 'react-refresh/only-export-components': 'off' },
   },
   {
-    files: ['**/*.config.{js,ts}'],
+    files: ['**/*.config.{js,ts}', 'apps/web/scripts/**/*.{js,mjs}'],
     languageOptions: { globals: globals.node },
   },
   prettier,

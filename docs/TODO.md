@@ -71,7 +71,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] `STAGE_EVENTS` producer on `stream-events-stage` in the production env only; `wrangler types`
 - [ ] Queue consumer: set `ready`/`error`, `duration_s`, `thumbnail_url`, `published_at`; idempotent; unknown `stream_uid` logged and acked
 - [ ] Point the account's Stream webhook URL at production; store the returned secret as production's `STREAM_WEBHOOK_SECRET`
-- [ ] Recorded webhook payloads as test fixtures
+- [x] Recorded webhook payloads as test fixtures
 
 **Watch and feeds**
 - [ ] `GET /api/videos/:id` (video + channel + counts)

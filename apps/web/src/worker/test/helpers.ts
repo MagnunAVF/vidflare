@@ -41,6 +41,21 @@ export function mockFetch(routes: Record<string, Responder>) {
   return requests
 }
 
+// The Webhook-Signature header Stream would send for this exact body.
+export async function signStreamWebhook(secret: string, body: string, time = Date.now()) {
+  const seconds = Math.floor(time / 1000)
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  )
+  const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${seconds}.${body}`))
+  const hex = Array.from(new Uint8Array(mac), (b) => b.toString(16).padStart(2, '0')).join('')
+  return `time=${seconds},sig1=${hex}`
+}
+
 // Signs up a fresh user and returns their session cookie and channel id.
 export async function signUp() {
   mockTurnstile()
