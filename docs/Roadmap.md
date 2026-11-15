@@ -313,7 +313,7 @@ gantt
 
 **Exit criteria per phase**
 
-- [ ] Foundation: a user can sign up and log in on a stage URL; CI deploys stage on merge to `dev`; a test error and its trace show up in Sentry for stage.
+- [x] Foundation: a user can sign up and log in on a stage URL; CI deploys stage on merge to `dev`; a test error and its trace show up in Sentry for stage.
 - [ ] Upload and watch: a 5-minute video uploads, turns `ready` via webhook, and plays on the watch page.
 - [ ] Social: likes, comments, views and subscriptions work and counters stay correct after a DO flush.
 - [ ] Launch prep: E2E suite green, Sentry alerts and dashboards in place, source maps resolving, production deployed behind your domain.

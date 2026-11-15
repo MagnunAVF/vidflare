@@ -53,9 +53,9 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] `@sentry/vite-plugin` source map upload in CI (`SENTRY_AUTH_TOKEN`), hidden source maps
 
 **Exit criteria**
-- [ ] A user can sign up and log in on a stage URL
-- [ ] CI deploys stage on merge to `dev`
-- [ ] A test error and its trace show up in Sentry for stage
+- [x] A user can sign up and log in on a stage URL
+- [x] CI deploys stage on merge to `dev`
+- [x] A test error and its trace show up in Sentry for stage
 
 ## Phase 2: Upload and watch (weeks 3–4)
 
