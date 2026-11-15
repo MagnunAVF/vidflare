@@ -63,7 +63,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] `services/stream.ts`: direct creator upload, delete, status lookup
 - [x] `POST /api/videos/uploads` (row in `uploading`, Stream URL with `maxDurationSeconds` + `meta: { env, videoId }`, Turnstile)
 - [x] `POST /api/videos/:id/uploaded` (`processing` only `WHERE status = 'uploading'`)
-- [ ] `/upload` page: `UploadDropzone` with tus-js-client, progress bar, metadata form
+- [x] `/upload` page: `UploadDropzone` with tus-js-client, progress bar, metadata form
 - [ ] Poll status until `ready` / `error`
 
 **Webhook and queue**
