@@ -106,7 +106,12 @@
       "kv_namespaces": [{ "binding": "CACHE", "id": "27cc632987c24f938b689bab86f22923" }],
       "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "vidflare-media-production" }],
       "queues": {
-        "producers": [{ "binding": "EVENTS", "queue": "stream-events-production" }],
+        "producers": [
+          { "binding": "EVENTS", "queue": "stream-events-production" },
+          // Production only: the account's single Stream webhook lands here, and stage-tagged
+          // events are forwarded to stage's queue (see "Stream across environments").
+          { "binding": "STAGE_EVENTS", "queue": "stream-events-stage" },
+        ],
         "consumers": [{ "queue": "stream-events-production", "max_batch_size": 10 }],
       },
       "durable_objects": {
