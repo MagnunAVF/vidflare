@@ -79,3 +79,15 @@ export const videoRoutes = new Hono<AppEnv>()
     if (!current) throw new ApiError(404, 'not_found')
     return c.json(current, 200)
   })
+  // The upload page polls this until `ready` or `error`. Owner only: a video that isn't ready
+  // (or is unlisted) must not be discoverable by id through this route.
+  .get('/:id/status', requireUser, validate('param', videoIdParam), async (c) => {
+    const { id } = c.req.valid('param')
+    const video = await getDb(c.env.DB)
+      .select({ id: videos.id, status: videos.status })
+      .from(videos)
+      .where(and(eq(videos.id, id), eq(videos.channelId, c.var.user.channel.id)))
+      .get()
+    if (!video) throw new ApiError(404, 'not_found')
+    return c.json(video, 200)
+  })

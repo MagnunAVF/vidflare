@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { Textarea } from '@/components/ui/textarea'
+import { UploadStatus } from '@/components/UploadStatus'
 import { ApiRequestError } from '@/lib/api'
 import { uploadToStream, useCreateUpload, useMarkUploaded } from '@/lib/videos'
 
@@ -120,9 +121,14 @@ export function UploadDropzone(props: { onUploaded?: (videoId: string) => void }
 
   if (phase.name === 'done') {
     return (
-      <p role="status" className="text-sm">
-        Upload complete. Stream is processing your video.
-      </p>
+      <UploadStatus
+        videoId={phase.videoId}
+        onUploadAnother={() => {
+          setFile(null)
+          form.reset()
+          setPhase({ name: 'editing' })
+        }}
+      />
     )
   }
 

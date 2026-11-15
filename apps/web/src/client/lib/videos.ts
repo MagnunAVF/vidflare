@@ -1,5 +1,5 @@
-import { useMutation } from '@tanstack/react-query'
-import type { CreateUploadInput } from '@vidflare/shared'
+import { queryOptions, useMutation } from '@tanstack/react-query'
+import type { CreateUploadInput, VideoStatus } from '@vidflare/shared'
 import { Upload } from 'tus-js-client'
 
 import { api, unwrap } from './api'
@@ -19,6 +19,20 @@ export function useMarkUploaded() {
       unwrap(await api.api.videos[':id'].uploaded.$post({ param: { id } })),
   })
 }
+
+const POLL_INTERVAL_MS = 5000
+const isFinal = (status: VideoStatus | undefined) => status === 'ready' || status === 'error'
+
+// An uploaded video's status, refetched every few seconds until Stream is done with it
+// (`ready` or `error`, set by the webhook's queue consumer).
+export const videoStatusQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['videos', id, 'status'],
+    queryFn: async () => unwrap(await api.api.videos[':id'].status.$get({ param: { id } })),
+    refetchInterval: (query) => (isFinal(query.state.data?.status) ? false : POLL_INTERVAL_MS),
+    // Keep polling when the user switches tabs; uploads often run in the background.
+    refetchIntervalInBackground: true,
+  })
 
 // Stream's tus rules: every chunk the same size, a multiple of 256 KiB, 5–200 MiB.
 // 50 MiB is Stream's recommendation for reliable connections.

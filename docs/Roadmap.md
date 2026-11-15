@@ -154,6 +154,7 @@ All routes live under `/api`, are validated with Zod, and are chained on one Hon
 | GET | `/api/videos/:id` | — | Video detail + channel + counts |
 | POST | `/api/videos/uploads` | User | Create `videos` row + Stream direct upload URL |
 | POST | `/api/videos/:id/uploaded` | Owner | Mark upload finished (`uploading` → `processing`) |
+| GET | `/api/videos/:id/status` | Owner | Current status, polled by the upload page |
 | PATCH | `/api/videos/:id` | Owner | Edit title, description, visibility |
 | DELETE | `/api/videos/:id` | Owner | Delete in Stream + D1 |
 | POST | `/api/videos/:id/view` | — | Record a view (to Durable Object) |
@@ -283,7 +284,7 @@ Nine routes cover the MVP; every page reads through TanStack Query hooks wrappin
 
 - `StreamPlayer` wraps the Stream iframe (`https://customer-<code>.cloudflarestream.com/<uid>/iframe`) and posts a view to the API once playback passes ~10 seconds.
 - Likes and subscribes use optimistic updates in TanStack Query, rolled back on error.
-- The upload page polls `/api/studio/videos` (or the video endpoint) every few seconds until status becomes `ready`.
+- The upload page polls `/api/videos/:id/status` (owner only) every 5 seconds until the status is `ready` or `error`.
 - Shared Zod schemas from `packages/shared` drive form validation (React Hook Form + zod resolver).
 - Code-split routes; the watch page is the only one that loads the player.
 
