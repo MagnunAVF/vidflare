@@ -48,7 +48,19 @@ pnpm exec wrangler d1 migrations apply vidflare-db-production --remote --env pro
 
 Both environments share this account's Stream library, and `STREAM_ACCOUNT_ID` is the same value in both. Stream has a single webhook URL per account, so it points at production, which routes each event to the right environment's queue by the upload's `meta.env`. The design is in the roadmap under "Stream across environments".
 
-4. Register the webhook once the production Worker serves `/api/webhooks/stream` (Phase 2): set the account's webhook URL to `https://<production domain>/api/webhooks/stream`. Stream returns the signing secret; store it as production's `STREAM_WEBHOOK_SECRET`.
+4. Register the webhook once production serves `/api/webhooks/stream` with the `STAGE_EVENTS` binding (i.e. after the Phase 2 webhook code is merged to `main` and deployed). The account has one webhook, so this repoints it if one already exists.
+
+   ```sh
+   # Token: one with Stream:Edit on this account (e.g. production's Stream token).
+   curl -s -X PUT "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/stream/webhook" \
+     -H "Authorization: Bearer $STREAM_API_TOKEN" -H 'Content-Type: application/json' \
+     -d '{"notificationUrl":"https://<production host>/api/webhooks/stream"}' \
+     | jq -r '.result.secret' | pnpm exec wrangler secret put STREAM_WEBHOOK_SECRET --env production
+   ```
+
+   The secret goes straight from the response into production's `STREAM_WEBHOOK_SECRET` without being printed. Check with `curl -s -H "Authorization: Bearer $STREAM_API_TOKEN" .../stream/webhook | jq '.result.notificationUrl'`. Until this is done, production answers every Stream webhook with 401 (placeholder secret), and stage videos stay `processing`.
+
+   To verify end to end, upload a short video on stage: it should turn `ready` within a minute or so. Production's logs show `webhook.routed` with `env: stage`, and stage's show `video.ready`.
 
 ## 4. Secrets per environment
 
