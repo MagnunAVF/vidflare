@@ -1,0 +1,46 @@
+{
+  "uid": "151adad0f8733b6668ded9bd0f182a77",
+  "creator": null,
+  "thumbnail": "https://customer-example.cloudflarestream.com/151adad0f8733b6668ded9bd0f182a77/thumbnails/thumbnail.jpg",
+  "thumbnailTimestampPct": 0,
+  "readyToStream": true,
+  "readyToStreamAt": "2026-11-15T19:56:29.389032Z",
+  "status": {
+    "state": "ready",
+    "pctComplete": "100.000000",
+    "errorReasonCode": "",
+    "errorReasonText": ""
+  },
+  "meta": {
+    "env": "local",
+    "videoId": "01a1e0f0-0000-7000-8000-00000000f101"
+  },
+  "created": "2026-11-15T19:56:22.879829Z",
+  "modified": "2026-11-15T19:56:29.393922Z",
+  "scheduledDeletion": null,
+  "size": 72169,
+  "preview": "https://customer-example.cloudflarestream.com/151adad0f8733b6668ded9bd0f182a77/watch",
+  "allowedOrigins": [],
+  "requireSignedURLs": false,
+  "uploaded": "2026-11-15T19:56:22.87679Z",
+  "uploadExpiry": null,
+  "maxSizeBytes": null,
+  "maxDurationSeconds": null,
+  "duration": 5,
+  "input": {
+    "width": 320,
+    "height": 240
+  },
+  "playback": {
+    "hls": "https://customer-example.cloudflarestream.com/151adad0f8733b6668ded9bd0f182a77/manifest/video.m3u8",
+    "dash": "https://customer-example.cloudflarestream.com/151adad0f8733b6668ded9bd0f182a77/manifest/video.mpd"
+  },
+  "watermark": null,
+  "clippedFrom": null,
+  "publicDetails": {
+    "title": "",
+    "share_link": "",
+    "channel_link": "",
+    "logo": ""
+  }
+}
