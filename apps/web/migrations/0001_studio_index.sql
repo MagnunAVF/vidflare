@@ -1,0 +1,1 @@
+CREATE INDEX `videos_studio_idx` ON `videos` (`channel_id`,"created_at" desc,"id" desc);

@@ -80,7 +80,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] `/` page: `VideoGrid`, `VideoCard`, infinite scroll
 
 **Studio**
-- [ ] `GET /api/studio/videos` (own videos, all statuses)
+- [x] `GET /api/studio/videos` (own videos, all statuses)
 - [ ] `PATCH /api/videos/:id` and `DELETE /api/videos/:id` (Stream + D1, owner check in SQL)
 - [ ] `/studio` page: `StudioTable` with status badges, edit, delete
 - [ ] Re-check button that queries the Stream API for stuck videos

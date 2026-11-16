@@ -9,6 +9,7 @@ import { auth } from './routes/auth'
 import { debug } from './routes/debug'
 import { handleStreamEvents } from './queue/stream-events'
 import { me } from './routes/me'
+import { studio } from './routes/studio'
 import { videoRoutes } from './routes/videos'
 import { webhooks } from './routes/webhooks'
 import { sentryOptions } from './sentry'
@@ -32,6 +33,7 @@ const app = new Hono<AppEnv>()
   .route('/auth', auth)
   .route('/me', me)
   .route('/videos', videoRoutes)
+  .route('/studio', studio)
   .route('/webhooks', webhooks)
   .route('/debug', debug)
 

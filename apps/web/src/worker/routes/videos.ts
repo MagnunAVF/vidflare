@@ -46,7 +46,7 @@ export const videoRoutes = new Hono<AppEnv>()
           eq(videos.visibility, 'public'),
           isNotNull(videos.publishedAt),
           after
-            ? sql`(${videos.publishedAt}, ${videos.id}) < (${after.publishedAt}, ${after.id})`
+            ? sql`(${videos.publishedAt}, ${videos.id}) < (${after.at}, ${after.id})`
             : undefined,
         ),
       )
@@ -62,7 +62,7 @@ export const videoRoutes = new Hono<AppEnv>()
     const last = items.at(-1)
     const nextCursor =
       rows.length > FEED_PAGE_SIZE && last
-        ? encodeCursor({ publishedAt: last.publishedAt, id: last.id })
+        ? encodeCursor({ at: last.publishedAt, id: last.id })
         : null
     return c.json({ items, nextCursor } satisfies Page<(typeof items)[number]>, 200)
   })

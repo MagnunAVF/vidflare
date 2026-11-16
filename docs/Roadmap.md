@@ -127,6 +127,7 @@ Seven tables cover the MVP; video files live in Stream and D1 only stores the St
 
 - `videos (status, visibility, published_at DESC)` for the home feed
 - `videos (channel_id, published_at DESC)` for channel pages and the subscriptions feed
+- `videos (channel_id, created_at DESC)` for the creator studio (every status)
 - `comments (video_id, created_at DESC)`
 - `subscriptions (channel_id)` for subscriber lookups
 - FTS5 virtual table `videos_fts (title, description)` for search, kept in sync by triggers; search results join back to `videos` and apply the public-listing filter

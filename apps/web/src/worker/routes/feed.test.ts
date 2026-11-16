@@ -98,7 +98,7 @@ describe('GET /api/videos (home feed)', () => {
   it('neither skips nor repeats a video published at the same instant as the cursor', async () => {
     const [firstTied, secondTied] = listed.filter((v) => v.publishedAt === TIE)
 
-    const page = await getPage(encodeCursor(firstTied!))
+    const page = await getPage(encodeCursor({ at: firstTied!.publishedAt, id: firstTied!.id }))
 
     expect(page.items[0]!.id).toBe(secondTied!.id)
   })
