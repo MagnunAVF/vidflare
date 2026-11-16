@@ -1,6 +1,7 @@
 import { useSuspenseInfiniteQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, redirect } from '@tanstack/react-router'
 
+import { RecheckButton } from '@/components/RecheckButton'
 import { StudioTable } from '@/components/StudioTable'
 import { Button } from '@/components/ui/button'
 import { meQuery } from '@/lib/auth'
@@ -34,7 +35,14 @@ function StudioPage() {
         </p>
       ) : (
         <>
-          <StudioTable videos={videos} />
+          <StudioTable
+            videos={videos}
+            extraActions={(video) =>
+              video.status === 'uploading' || video.status === 'processing' ? (
+                <RecheckButton id={video.id} status={video.status} />
+              ) : null
+            }
+          />
           {studio.hasNextPage && (
             <Button
               variant="outline"

@@ -99,3 +99,13 @@ export function useDeleteVideo() {
     onSuccess: (_data, id) => invalidate(id),
   })
 }
+
+// Asks the API to re-check a stuck video against Stream (POST /api/studio/videos/:id/recheck).
+export function useRecheckVideo() {
+  const invalidate = useInvalidateVideo()
+  return useMutation({
+    mutationFn: async (id: string) =>
+      unwrap(await api.api.studio.videos[':id'].recheck.$post({ param: { id } })),
+    onSuccess: (_data, id) => invalidate(id),
+  })
+}

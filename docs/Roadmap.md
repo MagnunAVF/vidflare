@@ -169,6 +169,7 @@ All routes live under `/api`, are validated with Zod, and are chained on one Hon
 | GET | `/api/feed/subscriptions?cursor=` | User | Latest from subscribed channels |
 | GET | `/api/search?q=` | — | FTS5 title/description search (public, ready only) |
 | GET | `/api/studio/videos` | User | Creator's own videos, all statuses |
+| POST | `/api/studio/videos/:id/recheck` | Owner | Ask Stream for a stuck video's state and apply it |
 | POST | `/api/me/avatar` | User | Upload avatar to R2 |
 | POST | `/api/webhooks/stream` | Signature | Stream "video ready / error" events |
 

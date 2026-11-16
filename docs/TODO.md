@@ -83,7 +83,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] `GET /api/studio/videos` (own videos, all statuses)
 - [x] `PATCH /api/videos/:id` and `DELETE /api/videos/:id` (Stream + D1, owner check in SQL)
 - [x] `/studio` page: `StudioTable` with status badges, edit, delete
-- [ ] Re-check button that queries the Stream API for stuck videos
+- [x] Re-check button that queries the Stream API for stuck videos
 
 **Exit criteria**
 - [ ] A 5-minute video uploads, turns `ready` via webhook, and plays on the watch page
