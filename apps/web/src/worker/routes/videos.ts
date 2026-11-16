@@ -3,6 +3,7 @@ import {
   cursorQuery,
   FEED_PAGE_SIZE,
   type Page,
+  updateVideoInput,
   UPLOAD_MAX_DURATION_S,
   videoIdParam,
 } from '@vidflare/shared'
@@ -191,4 +192,44 @@ export const videoRoutes = new Hono<AppEnv>()
       },
       200,
     )
+  })
+  // Edit title, description or visibility. Owner check in the SQL WHERE: someone else's video
+  // updates nothing and answers 404, like a missing one.
+  .patch(
+    '/:id',
+    requireUser,
+    validate('param', videoIdParam),
+    validate('json', updateVideoInput),
+    async (c) => {
+      const { id } = c.req.valid('param')
+      const updated = await getDb(c.env.DB)
+        .update(videos)
+        .set(c.req.valid('json'))
+        .where(and(eq(videos.id, id), eq(videos.channelId, c.var.user.channel.id)))
+        .returning({
+          id: videos.id,
+          title: videos.title,
+          description: videos.description,
+          visibility: videos.visibility,
+          status: videos.status,
+        })
+        .get()
+      if (!updated) throw new ApiError(404, 'not_found')
+      return c.json(updated, 200)
+    },
+  )
+  // Delete in Stream, then in D1 (likes and comments cascade). Stream first: if it fails,
+  // nothing is deleted and the request can be retried; the other order could leave a Stream
+  // video nobody owns. Owner-scoped in SQL.
+  .delete('/:id', requireUser, validate('param', videoIdParam), async (c) => {
+    const { id } = c.req.valid('param')
+    const db = getDb(c.env.DB)
+    const owned = and(eq(videos.id, id), eq(videos.channelId, c.var.user.channel.id))
+    const video = await db.select({ streamUid: videos.streamUid }).from(videos).where(owned).get()
+    if (!video) throw new ApiError(404, 'not_found')
+
+    // Already gone in Stream counts as deleted.
+    if (video.streamUid) await deleteVideo(streamConfig(c.env), video.streamUid)
+    await db.delete(videos).where(owned)
+    return c.body(null, 204)
   })

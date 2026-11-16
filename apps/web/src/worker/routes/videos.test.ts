@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getDb } from '../db/client'
-import { videos } from '../db/schema'
+import { comments, likes, videos } from '../db/schema'
 import { uuidv7 } from '../lib/id'
 import {
   callApi,
@@ -287,5 +287,114 @@ describe('GET /api/videos/:id', () => {
   it('answers 404 for an unknown id and 400 for a malformed one', async () => {
     expect((await callApi(`/api/videos/${uuidv7()}`)).status).toBe(404)
     expect((await callApi('/api/videos/nope')).status).toBe(400)
+  })
+})
+
+const sendJson = (method: string, path: string, body: unknown, cookie?: string) =>
+  callApi(path, {
+    method,
+    headers: { 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
+    body: JSON.stringify(body),
+  })
+
+describe('PATCH /api/videos/:id', () => {
+  it('updates only the fields sent, for the owner', async () => {
+    const { cookie, channelId } = await signUp()
+    const id = await insertVideo(channelId, 'ready')
+
+    const res = await sendJson(
+      'PATCH',
+      `/api/videos/${id}`,
+      { title: '  Better title ', visibility: 'unlisted' },
+      cookie,
+    )
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({
+      id,
+      title: 'Better title',
+      visibility: 'unlisted',
+      description: '',
+    })
+    expect(await db.select().from(videos).where(eq(videos.id, id)).get()).toMatchObject({
+      title: 'Better title',
+      visibility: 'unlisted',
+      status: 'ready',
+    })
+  })
+
+  it("answers 404 for someone else's video and leaves it unchanged", async () => {
+    const owner = await signUp()
+    const other = await signUp()
+    const id = await insertVideo(owner.channelId, 'ready')
+
+    const res = await sendJson('PATCH', `/api/videos/${id}`, { title: 'Hijacked' }, other.cookie)
+
+    expect(res.status).toBe(404)
+    expect((await db.select().from(videos).where(eq(videos.id, id)).get())?.title).toBe('Clip')
+  })
+
+  it('rejects an empty or invalid update, and needs a session', async () => {
+    const { cookie, channelId } = await signUp()
+    const id = await insertVideo(channelId, 'ready')
+    expect((await sendJson('PATCH', `/api/videos/${id}`, {}, cookie)).status).toBe(400)
+    expect((await sendJson('PATCH', `/api/videos/${id}`, { title: '' }, cookie)).status).toBe(400)
+    expect((await sendJson('PATCH', `/api/videos/${id}`, { title: 'x' })).status).toBe(401)
+  })
+})
+
+describe('DELETE /api/videos/:id', () => {
+  const deleteVideoReq = (id: string, cookie?: string) =>
+    callApi(`/api/videos/${id}`, { method: 'DELETE', headers: cookie ? { cookie } : {} })
+
+  it('deletes the Stream video, then the row with its likes and comments', async () => {
+    const { cookie, channelId, userId } = await signUp()
+    const id = await insertVideo(channelId, 'ready')
+    const row = await db.select().from(videos).where(eq(videos.id, id)).get()
+    await db.insert(likes).values({ userId, videoId: id, createdAt: 1 })
+    await db
+      .insert(comments)
+      .values({ id: uuidv7(), videoId: id, userId, body: 'Nice', createdAt: 1 })
+    const requests = mockFetch({ [STREAM_API_URL]: () => Response.json({ success: true }) })
+
+    const res = await deleteVideoReq(id, cookie)
+
+    expect(res.status).toBe(204)
+    expect(requests).toHaveLength(1)
+    expect(requests[0]!.method).toBe('DELETE')
+    expect(requests[0]!.url).toMatch(new RegExp(`/stream/${row!.streamUid}$`))
+    expect(await db.select().from(videos).where(eq(videos.id, id)).get()).toBeUndefined()
+    expect(await db.select().from(likes).where(eq(likes.videoId, id)).all()).toEqual([])
+    expect(await db.select().from(comments).where(eq(comments.videoId, id)).all()).toEqual([])
+  })
+
+  it('still deletes the row when the video is already gone in Stream', async () => {
+    const { cookie, channelId } = await signUp()
+    const id = await insertVideo(channelId, 'error')
+    mockFetch({ [STREAM_API_URL]: () => new Response(null, { status: 404 }) })
+
+    expect((await deleteVideoReq(id, cookie)).status).toBe(204)
+    expect(await db.select().from(videos).where(eq(videos.id, id)).get()).toBeUndefined()
+  })
+
+  it('keeps the row when Stream fails, so the delete can be retried', async () => {
+    const { cookie, channelId } = await signUp()
+    const id = await insertVideo(channelId, 'ready')
+    mockFetch({ [STREAM_API_URL]: () => new Response(null, { status: 500 }) })
+
+    expect((await deleteVideoReq(id, cookie)).status).toBe(500)
+    expect(await db.select().from(videos).where(eq(videos.id, id)).get()).toBeDefined()
+  })
+
+  it("answers 404 for someone else's video without touching Stream", async () => {
+    const owner = await signUp()
+    const other = await signUp()
+    const id = await insertVideo(owner.channelId, 'ready')
+    const requests = mockFetch({})
+
+    expect((await deleteVideoReq(id, other.cookie)).status).toBe(404)
+    expect(requests).toHaveLength(0)
+    expect(await db.select().from(videos).where(eq(videos.id, id)).get()).toBeDefined()
+    expect((await deleteVideoReq(id)).status).toBe(401)
   })
 })

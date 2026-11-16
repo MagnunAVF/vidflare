@@ -26,6 +26,14 @@ export const videoMetadataInput = z.object({
 })
 export type VideoMetadataInput = z.input<typeof videoMetadataInput>
 
+// PATCH /api/videos/:id: any subset of the metadata, but at least one field.
+export const updateVideoInput = videoMetadataInput
+  .partial()
+  .refine((v) => Object.values(v).some((value) => value !== undefined), {
+    message: 'Nothing to update',
+  })
+export type UpdateVideoInput = z.input<typeof updateVideoInput>
+
 // POST /api/videos/uploads. The size is the file's byte length: Stream needs it to create
 // the resumable (tus) upload before the browser sends any bytes.
 export const createUploadInput = videoMetadataInput.extend({

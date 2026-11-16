@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import { UPLOAD_MAX_BYTES } from './limits'
-import { createUploadInput, videoIdParam, videoStatus, videoVisibility } from './video'
+import {
+  createUploadInput,
+  updateVideoInput,
+  videoIdParam,
+  videoStatus,
+  videoVisibility,
+} from './video'
 
 describe('createUploadInput', () => {
   const valid = {
@@ -54,5 +60,18 @@ describe('video enums', () => {
   it('rejects unknown values', () => {
     expect(videoStatus.safeParse('deleted').success).toBe(false)
     expect(videoVisibility.safeParse('private').success).toBe(false)
+  })
+})
+
+describe('updateVideoInput', () => {
+  it('accepts any subset of the metadata and trims it', () => {
+    expect(updateVideoInput.parse({ title: '  New title ' })).toEqual({ title: 'New title' })
+    expect(updateVideoInput.parse({ visibility: 'unlisted' })).toEqual({ visibility: 'unlisted' })
+  })
+
+  it('rejects an empty update and invalid fields', () => {
+    expect(updateVideoInput.safeParse({}).success).toBe(false)
+    expect(updateVideoInput.safeParse({ title: '' }).success).toBe(false)
+    expect(updateVideoInput.safeParse({ visibility: 'private' }).success).toBe(false)
   })
 })
