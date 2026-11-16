@@ -30,7 +30,7 @@ React Hook Form + `zodResolver` with schemas from `@vidflare/shared`, the same o
 
 ## Video
 
-- `StreamPlayer` wraps the Stream iframe (`https://customer-<code>.cloudflarestream.com/<uid>/iframe`). Only the watch route loads it, so keep it code-split.
+- `StreamPlayer` wraps the Stream iframe. Its URL comes ready-made from the API as `playerUrl` (`https://customer-<code>.cloudflarestream.com/<uid>/iframe`, null until the video is ready). Only the watch route imports it, so it stays in that route's chunk.
 - Post `/api/videos/:id/view` once per load, after about 10 s of playback.
 - Uploads use tus-js-client straight to the Stream URL returned by `POST /api/videos/uploads`, then call `POST /api/videos/:id/uploaded`. Video bytes never go to our API.
 - After upload, poll `GET /api/videos/:id/status` (`videoStatusQuery`) every 5 seconds until the status is `ready` or `error`.

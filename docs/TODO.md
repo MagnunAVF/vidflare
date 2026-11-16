@@ -75,7 +75,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 
 **Watch and feeds**
 - [x] `GET /api/videos/:id` (video + channel + counts)
-- [ ] `/watch/$id` page with `StreamPlayer` (iframe, code-split)
+- [x] `/watch/$id` page with `StreamPlayer` (iframe, code-split)
 - [ ] `GET /api/videos?cursor=` home feed (public + ready, cursor on `(published_at, id)`)
 - [ ] `/` page: `VideoGrid`, `VideoCard`, infinite scroll
 

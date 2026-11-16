@@ -20,6 +20,15 @@ export function useMarkUploaded() {
   })
 }
 
+// The watch page's data (GET /api/videos/:id). Throws ApiRequestError (404) for a video that
+// doesn't exist or isn't visible to this user.
+export const videoQuery = (id: string) =>
+  queryOptions({
+    queryKey: ['videos', id],
+    queryFn: async () => unwrap(await api.api.videos[':id'].$get({ param: { id } })),
+    staleTime: 60_000,
+  })
+
 const POLL_INTERVAL_MS = 5000
 const isFinal = (status: VideoStatus | undefined) => status === 'ready' || status === 'error'
 
