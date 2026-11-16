@@ -234,3 +234,58 @@ describe('GET /api/videos/:id/status', () => {
     expect((await callApi(`/api/videos/${id}/status`)).status).toBe(401)
   })
 })
+
+describe('GET /api/videos/:id', () => {
+  it('returns a ready video with its channel, counters and player URL to anyone', async () => {
+    const { channelId } = await signUp()
+    const id = await insertVideo(channelId, 'ready')
+    const row = await db.select().from(videos).where(eq(videos.id, id)).get()
+
+    const res = await callApi(`/api/videos/${id}`)
+
+    expect(res.status).toBe(200)
+    const body = await res.json<Record<string, unknown>>()
+    expect(body).toMatchObject({
+      id,
+      title: 'Clip',
+      status: 'ready',
+      visibility: 'public',
+      viewCount: 0,
+      likeCount: 0,
+      commentCount: 0,
+      isOwner: false,
+      playerUrl: `https://customer-${env.STREAM_CUSTOMER_CODE}.cloudflarestream.com/${row!.streamUid}/iframe`,
+      channel: { id: channelId, subscriberCount: 0 },
+    })
+    // The raw Stream uid and internal columns stay server-side.
+    expect(body).not.toHaveProperty('streamUid')
+    expect(body).not.toHaveProperty('channelId')
+  })
+
+  it('serves unlisted ready videos by link', async () => {
+    const { channelId } = await signUp()
+    const id = await insertVideo(channelId, 'ready')
+    await db.update(videos).set({ visibility: 'unlisted' }).where(eq(videos.id, id))
+    expect((await callApi(`/api/videos/${id}`)).status).toBe(200)
+  })
+
+  it('hides a video that is not ready from everyone but its owner', async () => {
+    const owner = await signUp()
+    const other = await signUp()
+    const id = await insertVideo(owner.channelId, 'processing')
+
+    expect((await callApi(`/api/videos/${id}`)).status).toBe(404)
+    expect((await callApi(`/api/videos/${id}`, { headers: { cookie: other.cookie } })).status).toBe(
+      404,
+    )
+
+    const res = await callApi(`/api/videos/${id}`, { headers: { cookie: owner.cookie } })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ status: 'processing', isOwner: true, playerUrl: null })
+  })
+
+  it('answers 404 for an unknown id and 400 for a malformed one', async () => {
+    expect((await callApi(`/api/videos/${uuidv7()}`)).status).toBe(404)
+    expect((await callApi('/api/videos/nope')).status).toBe(400)
+  })
+})

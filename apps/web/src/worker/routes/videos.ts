@@ -3,12 +3,12 @@ import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 
 import { getDb } from '../db/client'
-import { videos } from '../db/schema'
+import { channels, videos } from '../db/schema'
 import { ApiError } from '../lib/errors'
 import { uuidv7 } from '../lib/id'
 import { requireUser } from '../middleware/session'
 import { validate } from '../middleware/validate'
-import { createDirectUpload, deleteVideo, streamConfig } from '../services/stream'
+import { createDirectUpload, deleteVideo, streamConfig, streamPlayerUrl } from '../services/stream'
 import { verifyTurnstile } from '../services/turnstile'
 import type { AppEnv } from '../types'
 
@@ -90,4 +90,52 @@ export const videoRoutes = new Hono<AppEnv>()
       .get()
     if (!video) throw new ApiError(404, 'not_found')
     return c.json(video, 200)
+  })
+  // Watch page data: the video, its channel and counters. A ready video (public or unlisted)
+  // is visible to anyone with the link; one that isn't ready yet only to its owner.
+  .get('/:id', validate('param', videoIdParam), async (c) => {
+    const { id } = c.req.valid('param')
+    const row = await getDb(c.env.DB)
+      .select({
+        id: videos.id,
+        streamUid: videos.streamUid,
+        title: videos.title,
+        description: videos.description,
+        status: videos.status,
+        visibility: videos.visibility,
+        durationS: videos.durationS,
+        thumbnailUrl: videos.thumbnailUrl,
+        viewCount: videos.viewCount,
+        likeCount: videos.likeCount,
+        commentCount: videos.commentCount,
+        publishedAt: videos.publishedAt,
+        channel: {
+          id: channels.id,
+          handle: channels.handle,
+          name: channels.name,
+          avatarKey: channels.avatarKey,
+          subscriberCount: channels.subscriberCount,
+        },
+      })
+      .from(videos)
+      .innerJoin(channels, eq(channels.id, videos.channelId))
+      .where(eq(videos.id, id))
+      .get()
+
+    const isOwner = row !== undefined && c.var.user?.channel.id === row.channel.id
+    if (!row || (row.status !== 'ready' && !isOwner)) throw new ApiError(404, 'not_found')
+
+    const { streamUid, ...video } = row
+    return c.json(
+      {
+        ...video,
+        isOwner,
+        // Null until Stream has a playable video.
+        playerUrl:
+          row.status === 'ready' && streamUid
+            ? streamPlayerUrl(c.env.STREAM_CUSTOMER_CODE, streamUid)
+            : null,
+      },
+      200,
+    )
   })

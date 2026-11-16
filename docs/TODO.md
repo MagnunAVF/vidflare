@@ -74,7 +74,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] Recorded webhook payloads as test fixtures
 
 **Watch and feeds**
-- [ ] `GET /api/videos/:id` (video + channel + counts)
+- [x] `GET /api/videos/:id` (video + channel + counts)
 - [ ] `/watch/$id` page with `StreamPlayer` (iframe, code-split)
 - [ ] `GET /api/videos?cursor=` home feed (public + ready, cursor on `(published_at, id)`)
 - [ ] `/` page: `VideoGrid`, `VideoCard`, infinite scroll

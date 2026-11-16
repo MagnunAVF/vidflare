@@ -29,6 +29,10 @@ export class StreamApiError extends Error {
   }
 }
 
+// The Stream player (iframe) for a video, on the account's playback subdomain.
+export const streamPlayerUrl = (customerCode: string, uid: string) =>
+  `https://customer-${customerCode}.cloudflarestream.com/${encodeURIComponent(uid)}/iframe`
+
 // Tags that route Stream's webhook events back to the right environment and row.
 export interface StreamUploadMeta {
   env: string

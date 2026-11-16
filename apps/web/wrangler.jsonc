@@ -26,7 +26,9 @@
   },
   "upload_source_maps": true,
 
-  "vars": { "ENVIRONMENT": "local" },
+  // STREAM_CUSTOMER_CODE: the account's Stream playback subdomain (customer-<code>.cloudflarestream.com).
+  // Public (it is in every embed URL) and the same in every env, since they share one account.
+  "vars": { "ENVIRONMENT": "local", "STREAM_CUSTOMER_CODE": "0fq81iqdnjco39qo" },
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "d1_databases": [
     {
@@ -60,7 +62,7 @@
   "env": {
     // Worker: vidflare-stage
     "stage": {
-      "vars": { "ENVIRONMENT": "stage" },
+      "vars": { "ENVIRONMENT": "stage", "STREAM_CUSTOMER_CODE": "0fq81iqdnjco39qo" },
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "d1_databases": [
         {
@@ -93,7 +95,7 @@
 
     // Worker: vidflare-production
     "production": {
-      "vars": { "ENVIRONMENT": "production" },
+      "vars": { "ENVIRONMENT": "production", "STREAM_CUSTOMER_CODE": "0fq81iqdnjco39qo" },
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "d1_databases": [
         {

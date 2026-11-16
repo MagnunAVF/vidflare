@@ -12,7 +12,7 @@ The single deployable: one Cloudflare Worker that serves the React SPA as static
 
 - `main` is `src/worker/index.ts`. Assets use `not_found_handling: "single-page-application"` and `run_worker_first: ["/api/*"]`. Keep both, or SPA routing or the API breaks.
 - `compatibility_flags` must include `nodejs_compat` (Sentry needs `AsyncLocalStorage`).
-- Bindings: `DB` (D1), `CACHE` (KV), `MEDIA` (R2), `EVENTS` (Queue producer on `stream-events`), `VIDEO_STATS` (Durable Object `VideoStats`), `CF_VERSION_METADATA` (version metadata), `ENVIRONMENT` var.
+- Bindings: `DB` (D1), `CACHE` (KV), `MEDIA` (R2), `EVENTS` (Queue producer on `stream-events`), `VIDEO_STATS` (Durable Object `VideoStats`), `CF_VERSION_METADATA` (version metadata), vars `ENVIRONMENT` and `STREAM_CUSTOMER_CODE` (the account's public Stream playback subdomain, same in every env; used to build player URLs).
 - Every binding must be defined for both `stage` and `production`, with separate resources per environment. The one exception is `STAGE_EVENTS` (production only, a second producer on `stream-events-stage`), which forwards stage-tagged Stream webhook events; it's optional in `Env`. Bindings, `vars` and `secrets` aren't inherited by `env` entries, so a binding change touches the top level (local) and both envs.
 - Resources live in one account, suffixed per env (`vidflare-db-stage`, `vidflare-media-production`, ...); Workers are `vidflare-stage` and `vidflare-production`.
 - The Vite plugin bakes the environment into the build: deploy with `pnpm deploy:stage` / `pnpm deploy:production` (`CLOUDFLARE_ENV=<env>` at build time). A plain `wrangler deploy` after a plain build would ship the local config. `wrangler d1 ...` commands read `wrangler.jsonc` directly, so they take `--env`.
