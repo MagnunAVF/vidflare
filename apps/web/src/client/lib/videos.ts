@@ -1,5 +1,10 @@
-import { infiniteQueryOptions, queryOptions, useMutation } from '@tanstack/react-query'
-import type { CreateUploadInput, VideoStatus } from '@vidflare/shared'
+import {
+  infiniteQueryOptions,
+  queryOptions,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
+import type { CreateUploadInput, UpdateVideoInput, VideoStatus } from '@vidflare/shared'
 
 import { api, unwrap } from './api'
 
@@ -51,3 +56,46 @@ export const videoStatusQuery = (id: string) =>
     // Keep polling when the user switches tabs; uploads often run in the background.
     refetchIntervalInBackground: true,
   })
+
+// The creator's own videos, every status (GET /api/studio/videos), page by page.
+export const studioVideosQuery = infiniteQueryOptions({
+  queryKey: ['studio', 'videos'],
+  queryFn: async ({ pageParam }) =>
+    unwrap(await api.api.studio.videos.$get({ query: pageParam ? { cursor: pageParam } : {} })),
+  initialPageParam: undefined as string | undefined,
+  getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+})
+
+// After an edit or delete, the studio list, the video's page and the home feed may all be
+// stale (title, visibility, or the video itself).
+function useInvalidateVideo() {
+  const queryClient = useQueryClient()
+  return (id: string) =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: studioVideosQuery.queryKey }),
+      queryClient.invalidateQueries({ queryKey: ['videos', id] }),
+      queryClient.invalidateQueries({ queryKey: homeFeedQuery.queryKey }),
+    ])
+}
+
+// PATCH /api/videos/:id
+export function useUpdateVideo() {
+  const invalidate = useInvalidateVideo()
+  return useMutation({
+    mutationFn: async ({ id, changes }: { id: string; changes: UpdateVideoInput }) =>
+      unwrap(await api.api.videos[':id'].$patch({ param: { id }, json: changes })),
+    onSuccess: (_data, { id }) => invalidate(id),
+  })
+}
+
+// DELETE /api/videos/:id (Stream and D1)
+export function useDeleteVideo() {
+  const invalidate = useInvalidateVideo()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.api.videos[':id'].$delete({ param: { id } })
+      if (!res.ok) await unwrap(res)
+    },
+    onSuccess: (_data, id) => invalidate(id),
+  })
+}

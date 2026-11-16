@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { CircleAlertIcon, CircleCheckIcon, LoaderCircleIcon } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -28,9 +29,14 @@ export function UploadStatus(props: { videoId: string; onUploadAnother: () => vo
         {icon}
         {message}
       </p>
-      <Button type="button" variant="outline" onClick={props.onUploadAnother}>
-        Upload another video
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild>
+          <Link to="/studio">Go to studio</Link>
+        </Button>
+        <Button type="button" variant="outline" onClick={props.onUploadAnother}>
+          Upload another video
+        </Button>
+      </div>
     </div>
   )
 }
