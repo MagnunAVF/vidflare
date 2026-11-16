@@ -14,7 +14,8 @@ import { Progress } from '@/components/ui/progress'
 import { Textarea } from '@/components/ui/textarea'
 import { UploadStatus } from '@/components/UploadStatus'
 import { ApiRequestError } from '@/lib/api'
-import { uploadToStream, useCreateUpload, useMarkUploaded } from '@/lib/videos'
+import { uploadToStream } from '@/lib/tus'
+import { useCreateUpload, useMarkUploaded } from '@/lib/videos'
 
 // The API's upload schema minus the size, which comes from the picked file.
 const uploadForm = createUploadInput.omit({ sizeBytes: true })
