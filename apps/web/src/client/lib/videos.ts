@@ -1,4 +1,4 @@
-import { queryOptions, useMutation } from '@tanstack/react-query'
+import { infiniteQueryOptions, queryOptions, useMutation } from '@tanstack/react-query'
 import type { CreateUploadInput, VideoStatus } from '@vidflare/shared'
 import { Upload } from 'tus-js-client'
 
@@ -19,6 +19,16 @@ export function useMarkUploaded() {
       unwrap(await api.api.videos[':id'].uploaded.$post({ param: { id } })),
   })
 }
+
+// The home feed, page by page (GET /api/videos?cursor=). Each page carries the next cursor.
+export const homeFeedQuery = infiniteQueryOptions({
+  queryKey: ['videos', 'feed', 'home'],
+  queryFn: async ({ pageParam }) =>
+    unwrap(await api.api.videos.$get({ query: pageParam ? { cursor: pageParam } : {} })),
+  initialPageParam: undefined as string | undefined,
+  getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  staleTime: 60_000,
+})
 
 // The watch page's data (GET /api/videos/:id). Throws ApiRequestError (404) for a video that
 // doesn't exist or isn't visible to this user.
