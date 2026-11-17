@@ -9,7 +9,9 @@
     "composite": true,
     "noEmit": false,
     "emitDeclarationOnly": true,
-    "declarationDir": "./node_modules/.tmp/worker-types"
+    "declarationDir": "./node_modules/.tmp/worker-types",
+    // Tests import the recorded Stream webhook payloads (src/worker/test/fixtures).
+    "resolveJsonModule": true
   },
-  "include": ["src/worker"]
+  "include": ["src/worker", "src/worker/**/*.json"]
 }

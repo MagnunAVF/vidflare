@@ -1,0 +1,46 @@
+{
+  "uid": "b26b90fdc30a3a04ee1e1d99842b30d0",
+  "creator": null,
+  "thumbnail": "https://customer-example.cloudflarestream.com/b26b90fdc30a3a04ee1e1d99842b30d0/thumbnails/thumbnail.jpg",
+  "thumbnailTimestampPct": 0,
+  "readyToStream": false,
+  "readyToStreamAt": null,
+  "status": {
+    "state": "error",
+    "step": "encoding",
+    "errorReasonCode": "ERR_NON_VIDEO",
+    "errorReasonText": "The file was not recognized as a valid video file."
+  },
+  "meta": {
+    "env": "local",
+    "videoId": "01a1e0f0-0000-7000-8000-00000000f102"
+  },
+  "created": "2026-11-15T19:56:26.697475Z",
+  "modified": "2026-11-15T19:56:29.096427Z",
+  "scheduledDeletion": null,
+  "size": 300219,
+  "preview": "https://customer-example.cloudflarestream.com/b26b90fdc30a3a04ee1e1d99842b30d0/watch",
+  "allowedOrigins": [],
+  "requireSignedURLs": false,
+  "uploaded": "2026-11-15T19:56:26.694682Z",
+  "uploadExpiry": null,
+  "maxSizeBytes": null,
+  "maxDurationSeconds": null,
+  "duration": -1,
+  "input": {
+    "width": -1,
+    "height": -1
+  },
+  "playback": {
+    "hls": "https://customer-example.cloudflarestream.com/b26b90fdc30a3a04ee1e1d99842b30d0/manifest/video.m3u8",
+    "dash": "https://customer-example.cloudflarestream.com/b26b90fdc30a3a04ee1e1d99842b30d0/manifest/video.mpd"
+  },
+  "watermark": null,
+  "clippedFrom": null,
+  "publicDetails": {
+    "title": "",
+    "share_link": "",
+    "channel_link": "",
+    "logo": ""
+  }
+}

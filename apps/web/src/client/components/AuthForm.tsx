@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile'
+import type { TurnstileInstance } from '@marsidev/react-turnstile'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { loginInput, signupInput } from '@vidflare/shared'
 import { useRef, type FormEventHandler, type ReactNode } from 'react'
@@ -17,13 +17,9 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { TurnstileField } from '@/components/TurnstileField'
 import { ApiRequestError } from '@/lib/api'
 import { useLogin, useSignup } from '@/lib/auth'
-
-// Cloudflare's public always-pass test key, used in dev when no site key is configured.
-const TURNSTILE_TEST_SITE_KEY = '1x00000000000000000000AA'
-const turnstileSiteKey =
-  import.meta.env.VITE_TURNSTILE_SITE_KEY ?? (import.meta.env.DEV ? TURNSTILE_TEST_SITE_KEY : '')
 
 const errorMessages: Record<string, string> = {
   invalid_credentials: 'Wrong email or password.',
@@ -183,7 +179,6 @@ function SignupForm() {
       }
     })(event)
 
-  const tokenError = form.formState.errors.turnstileToken?.message
   return (
     <AuthCard
       title="Create your channel"
@@ -211,17 +206,11 @@ function SignupForm() {
       />
       <Field form={form} name="handle" label="Handle" autoComplete="username" />
       <Field form={form} name="name" label="Channel name" />
-      <div className="grid gap-2">
-        <Turnstile
-          ref={turnstile}
-          siteKey={turnstileSiteKey}
-          options={{ theme: 'auto', size: 'flexible' }}
-          onSuccess={setToken}
-          onExpire={() => setToken('')}
-          onError={() => setToken('')}
-        />
-        {tokenError && <p className="text-sm text-destructive">{tokenError}</p>}
-      </div>
+      <TurnstileField
+        ref={turnstile}
+        onToken={setToken}
+        error={form.formState.errors.turnstileToken?.message}
+      />
     </AuthCard>
   )
 }

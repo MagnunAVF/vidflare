@@ -34,6 +34,12 @@ function Header() {
       <nav className="flex items-center gap-2">
         {me ? (
           <>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/studio">Studio</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link to="/upload">Upload</Link>
+            </Button>
             <span className="text-sm text-muted-foreground">{me.channel.name}</span>
             <Button
               variant="ghost"

@@ -64,6 +64,8 @@ export const videos = sqliteTable(
     // Feeds paginate on (published_at, id), so id is the trailing tie-breaker.
     index('videos_home_feed_idx').on(t.status, t.visibility, desc(t.publishedAt), desc(t.id)),
     index('videos_channel_idx').on(t.channelId, desc(t.publishedAt), desc(t.id)),
+    // The creator studio lists a channel's videos in every status, newest upload first.
+    index('videos_studio_idx').on(t.channelId, desc(t.createdAt), desc(t.id)),
   ],
 )
 

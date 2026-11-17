@@ -44,7 +44,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 
 **CI/CD**
 - [x] GitHub Actions: typecheck + lint + tests on every PR
-- [ ] On push (`dev` → stage, `main` → production): `wrangler d1 migrations apply --remote` then `wrangler deploy`
+- [x] On push (`dev` → stage, `main` → production): `wrangler d1 migrations apply --remote` then `wrangler deploy`
 
 **Sentry**
 - [x] Worker: `@sentry/cloudflare`, `withSentry`, `sentryOptions(env)`, `captureException` in `onError`
@@ -60,30 +60,30 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 ## Phase 2: Upload and watch (weeks 3–4)
 
 **Upload**
-- [ ] `services/stream.ts`: direct creator upload, delete, status lookup
-- [ ] `POST /api/videos/uploads` (row in `uploading`, Stream URL with `maxDurationSeconds` + `meta: { env, videoId }`, Turnstile)
-- [ ] `POST /api/videos/:id/uploaded` (`processing` only `WHERE status = 'uploading'`)
-- [ ] `/upload` page: `UploadDropzone` with tus-js-client, progress bar, metadata form
-- [ ] Poll status until `ready` / `error`
+- [x] `services/stream.ts`: direct creator upload, delete, status lookup
+- [x] `POST /api/videos/uploads` (row in `uploading`, Stream URL with `maxDurationSeconds` + `meta: { env, videoId }`, Turnstile)
+- [x] `POST /api/videos/:id/uploaded` (`processing` only `WHERE status = 'uploading'`)
+- [x] `/upload` page: `UploadDropzone` with tus-js-client, progress bar, metadata form
+- [x] Poll status until `ready` / `error`
 
 **Webhook and queue**
-- [ ] `POST /api/webhooks/stream`: verify `Webhook-Signature` HMAC, route by `meta.env` (`production` → `EVENTS`, `stage` → `STAGE_EVENTS`, else warn + drop), return 200
-- [ ] `STAGE_EVENTS` producer on `stream-events-stage` in the production env only; `wrangler types`
-- [ ] Queue consumer: set `ready`/`error`, `duration_s`, `thumbnail_url`, `published_at`; idempotent; unknown `stream_uid` logged and acked
+- [x] `POST /api/webhooks/stream`: verify `Webhook-Signature` HMAC, route by `meta.env` (`production` → `EVENTS`, `stage` → `STAGE_EVENTS`, else warn + drop), return 200
+- [x] `STAGE_EVENTS` producer on `stream-events-stage` in the production env only; `wrangler types`
+- [x] Queue consumer: set `ready`/`error`, `duration_s`, `thumbnail_url`, `published_at`; idempotent; unknown `stream_uid` logged and acked
 - [ ] Point the account's Stream webhook URL at production; store the returned secret as production's `STREAM_WEBHOOK_SECRET`
-- [ ] Recorded webhook payloads as test fixtures
+- [x] Recorded webhook payloads as test fixtures
 
 **Watch and feeds**
-- [ ] `GET /api/videos/:id` (video + channel + counts)
-- [ ] `/watch/$id` page with `StreamPlayer` (iframe, code-split)
-- [ ] `GET /api/videos?cursor=` home feed (public + ready, cursor on `(published_at, id)`)
-- [ ] `/` page: `VideoGrid`, `VideoCard`, infinite scroll
+- [x] `GET /api/videos/:id` (video + channel + counts)
+- [x] `/watch/$id` page with `StreamPlayer` (iframe, code-split)
+- [x] `GET /api/videos?cursor=` home feed (public + ready, cursor on `(published_at, id)`)
+- [x] `/` page: `VideoGrid`, `VideoCard`, infinite scroll
 
 **Studio**
-- [ ] `GET /api/studio/videos` (own videos, all statuses)
-- [ ] `PATCH /api/videos/:id` and `DELETE /api/videos/:id` (Stream + D1, owner check in SQL)
-- [ ] `/studio` page: `StudioTable` with status badges, edit, delete
-- [ ] Re-check button that queries the Stream API for stuck videos
+- [x] `GET /api/studio/videos` (own videos, all statuses)
+- [x] `PATCH /api/videos/:id` and `DELETE /api/videos/:id` (Stream + D1, owner check in SQL)
+- [x] `/studio` page: `StudioTable` with status badges, edit, delete
+- [x] Re-check button that queries the Stream API for stuck videos
 
 **Exit criteria**
 - [ ] A 5-minute video uploads, turns `ready` via webhook, and plays on the watch page
