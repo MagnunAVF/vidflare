@@ -11,7 +11,7 @@ import { and, desc, eq, isNotNull, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 
 import { getDb } from '../db/client'
-import { channels, videos } from '../db/schema'
+import { channels, likes, videos } from '../db/schema'
 import { decodeCursor, encodeCursor } from '../lib/cursor'
 import { ApiError } from '../lib/errors'
 import { uuidv7 } from '../lib/id'
@@ -149,6 +149,7 @@ export const videoRoutes = new Hono<AppEnv>()
   // is visible to anyone with the link; one that isn't ready yet only to its owner.
   .get('/:id', validate('param', videoIdParam), async (c) => {
     const { id } = c.req.valid('param')
+    const userId = c.var.user?.id
     const row = await getDb(c.env.DB)
       .select({
         id: videos.id,
@@ -163,6 +164,10 @@ export const videoRoutes = new Hono<AppEnv>()
         likeCount: videos.likeCount,
         commentCount: videos.commentCount,
         publishedAt: videos.publishedAt,
+        // The viewer's own like, for the LikeButton's initial state (likes PK lookup).
+        likedByMe: userId
+          ? sql<number>`exists(select 1 from ${likes} where ${likes.userId} = ${userId} and ${likes.videoId} = ${videos.id})`
+          : sql<number>`0`,
         channel: {
           id: channels.id,
           handle: channels.handle,
@@ -179,10 +184,11 @@ export const videoRoutes = new Hono<AppEnv>()
     const isOwner = row !== undefined && c.var.user?.channel.id === row.channel.id
     if (!row || (row.status !== 'ready' && !isOwner)) throw new ApiError(404, 'not_found')
 
-    const { streamUid, ...video } = row
+    const { streamUid, likedByMe, ...video } = row
     return c.json(
       {
         ...video,
+        likedByMe: Boolean(likedByMe),
         isOwner,
         // Null until Stream has a playable video.
         playerUrl:

@@ -91,7 +91,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 ## Phase 3: Social (weeks 5–6)
 
 **Likes and comments**
-- [ ] `PUT / DELETE /api/videos/:id/like` (`ON CONFLICT DO NOTHING` + `like_count` in one batch)
+- [x] `PUT / DELETE /api/videos/:id/like` (`ON CONFLICT DO NOTHING` + `like_count` in one batch)
 - [ ] `LikeButton` with optimistic update and rollback
 - [ ] `GET /api/videos/:id/comments?cursor=`, `POST` (Turnstile), `DELETE /api/comments/:id` (soft delete, owner)
 - [ ] `CommentList` + `CommentForm`; `comment_count` updated in the same batch
