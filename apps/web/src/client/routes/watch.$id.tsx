@@ -1,9 +1,11 @@
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 
+import { LikeButton } from '@/components/LikeButton'
 import { StreamPlayer } from '@/components/StreamPlayer'
 import { Button } from '@/components/ui/button'
 import { ApiRequestError } from '@/lib/api'
+import { meQuery } from '@/lib/auth'
 import { formatRelativeTime, formatViews } from '@/lib/format'
 import { videoQuery } from '@/lib/videos'
 
@@ -26,6 +28,7 @@ export const Route = createFileRoute('/watch/$id')({
 function WatchPage() {
   const { id } = Route.useParams()
   const { data: video } = useSuspenseQuery(videoQuery(id))
+  const { data: me } = useQuery(meQuery)
 
   return (
     <main className="mx-auto grid w-full max-w-5xl gap-4 px-4 py-6">
@@ -57,6 +60,16 @@ function WatchPage() {
         )}
         {video.visibility === 'unlisted' && (
           <span className="rounded bg-muted px-1.5 py-0.5 text-xs">Unlisted</span>
+        )}
+        {video.status === 'ready' && (
+          <div className="ml-auto">
+            <LikeButton
+              videoId={video.id}
+              liked={video.likedByMe}
+              count={video.likeCount}
+              signedIn={Boolean(me)}
+            />
+          </div>
         )}
       </div>
 
