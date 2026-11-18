@@ -12,6 +12,7 @@ import { getDb } from '../db/client'
 import { channels, likes, videos } from '../db/schema'
 import { ApiError } from '../lib/errors'
 import { publicVideoPage } from '../lib/feed'
+import { subscribedBy } from '../lib/subscriptions'
 import { uuidv7 } from '../lib/id'
 import { requireUser } from '../middleware/session'
 import { validate } from '../middleware/validate'
@@ -133,6 +134,7 @@ export const videoRoutes = new Hono<AppEnv>()
           name: channels.name,
           avatarKey: channels.avatarKey,
           subscriberCount: channels.subscriberCount,
+          subscribedByMe: subscribedBy(userId),
         },
       })
       .from(videos)
@@ -147,6 +149,7 @@ export const videoRoutes = new Hono<AppEnv>()
     return c.json(
       {
         ...video,
+        channel: { ...video.channel, subscribedByMe: Boolean(video.channel.subscribedByMe) },
         likedByMe: Boolean(likedByMe),
         isOwner,
         // Null until Stream has a playable video.
