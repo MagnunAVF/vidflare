@@ -13,6 +13,7 @@ import { likeRoutes } from './routes/likes'
 import { me } from './routes/me'
 import { studio } from './routes/studio'
 import { videoRoutes } from './routes/videos'
+import { viewRoutes } from './routes/views'
 import { webhooks } from './routes/webhooks'
 import { sentryOptions } from './sentry'
 import type { AppEnv } from './types'
@@ -37,6 +38,7 @@ const app = new Hono<AppEnv>()
   .route('/videos', videoRoutes)
   .route('/videos', likeRoutes)
   .route('/videos', videoCommentRoutes)
+  .route('/videos', viewRoutes)
   .route('/comments', commentRoutes)
   .route('/studio', studio)
   .route('/webhooks', webhooks)

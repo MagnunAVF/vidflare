@@ -98,7 +98,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 
 **Views**
 - [x] `VideoStats` Durable Object: dedupe by session, SQLite counters, 60 s alarm flush to D1
-- [ ] `POST /api/videos/:id/view` forwarding to the DO
+- [x] `POST /api/videos/:id/view` forwarding to the DO
 - [ ] Player posts a view after ~10 s of playback
 
 **Channels and subscriptions**
