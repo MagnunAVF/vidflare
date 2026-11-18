@@ -91,26 +91,26 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 ## Phase 3: Social (weeks 5–6)
 
 **Likes and comments**
-- [ ] `PUT / DELETE /api/videos/:id/like` (`ON CONFLICT DO NOTHING` + `like_count` in one batch)
-- [ ] `LikeButton` with optimistic update and rollback
-- [ ] `GET /api/videos/:id/comments?cursor=`, `POST` (Turnstile), `DELETE /api/comments/:id` (soft delete, owner)
-- [ ] `CommentList` + `CommentForm`; `comment_count` updated in the same batch
+- [x] `PUT / DELETE /api/videos/:id/like` (`ON CONFLICT DO NOTHING` + `like_count` in one batch)
+- [x] `LikeButton` with optimistic update and rollback
+- [x] `GET /api/videos/:id/comments?cursor=`, `POST` (Turnstile), `DELETE /api/comments/:id` (soft delete, owner)
+- [x] `CommentList` + `CommentForm`; `comment_count` updated in the same batch
 
 **Views**
-- [ ] `VideoStats` Durable Object: dedupe by session, SQLite counters, 60 s alarm flush to D1
-- [ ] `POST /api/videos/:id/view` forwarding to the DO
-- [ ] Player posts a view after ~10 s of playback
+- [x] `VideoStats` Durable Object: dedupe by session, SQLite counters, 60 s alarm flush to D1
+- [x] `POST /api/videos/:id/view` forwarding to the DO
+- [x] Player posts a view after ~10 s of playback
 
 **Channels and subscriptions**
-- [ ] `GET /api/channels/:handle` and `/api/channels/:handle/videos?cursor=`
-- [ ] `/c/$handle` page: `ChannelHeader`, `VideoGrid`
-- [ ] `PUT / DELETE /api/channels/:id/subscribe` (recompute `subscriber_count` in batch, no self-subscribe)
-- [ ] `SubscribeButton` with optimistic update
-- [ ] `GET /api/feed/subscriptions?cursor=` + `/feed/subscriptions` page
+- [x] `GET /api/channels/:handle` and `/api/channels/:handle/videos?cursor=`
+- [x] `/c/$handle` page: `ChannelHeader`, `VideoGrid`
+- [x] `PUT / DELETE /api/channels/:id/subscribe` (recompute `subscriber_count` in batch, no self-subscribe)
+- [x] `SubscribeButton` with optimistic update
+- [x] `GET /api/feed/subscriptions?cursor=` + `/feed/subscriptions` page
 
 **Profile**
-- [ ] `POST /api/me/avatar` to R2
-- [ ] `/settings` page: name, handle, avatar
+- [x] `POST /api/me/avatar` to R2
+- [x] `/settings` page: name, handle, avatar
 
 **Exit criteria**
 - [ ] Likes, comments, views and subscriptions work and counters stay correct after a DO flush

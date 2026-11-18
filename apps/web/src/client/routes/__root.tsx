@@ -1,6 +1,7 @@
 import { useQuery, type QueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, Link, Outlet, useNavigate } from '@tanstack/react-router'
 
+import { ChannelAvatar } from '@/components/ChannelAvatar'
 import { Button } from '@/components/ui/button'
 import { meQuery, useLogout } from '@/lib/auth'
 
@@ -35,12 +36,22 @@ function Header() {
         {me ? (
           <>
             <Button asChild variant="ghost" size="sm">
+              <Link to="/feed/subscriptions">Subscriptions</Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
               <Link to="/studio">Studio</Link>
             </Button>
             <Button asChild size="sm">
               <Link to="/upload">Upload</Link>
             </Button>
-            <span className="text-sm text-muted-foreground">{me.channel.name}</span>
+            <Link
+              to="/settings"
+              title="Settings"
+              className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <ChannelAvatar channel={me.channel} className="size-6 text-xs" />
+              <span>{me.channel.name}</span>
+            </Link>
             <Button
               variant="ghost"
               size="sm"

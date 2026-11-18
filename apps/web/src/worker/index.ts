@@ -6,11 +6,17 @@ import { notFound, onError } from './lib/errors'
 import { requestContext } from './middleware/request-context'
 import { sessionLoader } from './middleware/session'
 import { auth } from './routes/auth'
+import { channelRoutes } from './routes/channels'
+import { commentRoutes, videoCommentRoutes } from './routes/comments'
 import { debug } from './routes/debug'
+import { feedRoutes } from './routes/feed'
 import { handleStreamEvents } from './queue/stream-events'
+import { likeRoutes } from './routes/likes'
 import { me } from './routes/me'
+import { mediaRoutes } from './routes/media'
 import { studio } from './routes/studio'
 import { videoRoutes } from './routes/videos'
+import { viewRoutes } from './routes/views'
 import { webhooks } from './routes/webhooks'
 import { sentryOptions } from './sentry'
 import type { AppEnv } from './types'
@@ -33,6 +39,13 @@ const app = new Hono<AppEnv>()
   .route('/auth', auth)
   .route('/me', me)
   .route('/videos', videoRoutes)
+  .route('/videos', likeRoutes)
+  .route('/videos', videoCommentRoutes)
+  .route('/videos', viewRoutes)
+  .route('/comments', commentRoutes)
+  .route('/channels', channelRoutes)
+  .route('/feed', feedRoutes)
+  .route('/media', mediaRoutes)
   .route('/studio', studio)
   .route('/webhooks', webhooks)
   .route('/debug', debug)

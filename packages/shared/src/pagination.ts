@@ -14,3 +14,4 @@ export interface Page<T> {
 }
 
 export const FEED_PAGE_SIZE = 24
+export const COMMENTS_PAGE_SIZE = 20
