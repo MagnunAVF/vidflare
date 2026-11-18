@@ -109,7 +109,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] `GET /api/feed/subscriptions?cursor=` + `/feed/subscriptions` page
 
 **Profile**
-- [ ] `POST /api/me/avatar` to R2
+- [x] `POST /api/me/avatar` to R2
 - [ ] `/settings` page: name, handle, avatar
 
 **Exit criteria**

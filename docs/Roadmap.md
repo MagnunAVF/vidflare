@@ -170,7 +170,8 @@ All routes live under `/api`, are validated with Zod, and are chained on one Hon
 | GET | `/api/search?q=` | — | FTS5 title/description search (public, ready only) |
 | GET | `/api/studio/videos` | User | Creator's own videos, all statuses |
 | POST | `/api/studio/videos/:id/recheck` | Owner | Ask Stream for a stuck video's state and apply it |
-| POST | `/api/me/avatar` | User | Upload avatar to R2 |
+| POST / DELETE | `/api/me/avatar` | User | Upload (PNG/JPEG/WebP, 2 MB) / remove avatar in R2 |
+| GET | `/api/media/avatars/:channelId/:file` | — | Serve an avatar from R2 (immutable key, long cache) |
 | POST | `/api/webhooks/stream` | Signature | Stream "video ready / error" events |
 
 **Middleware order:** Sentry instrumentation (outermost, via withSentry) → request id + logger → error handler (consistent JSON errors) → session loader (sets `c.var.user`) → `requireUser` on protected routes → Zod validators.
