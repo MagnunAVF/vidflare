@@ -110,7 +110,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 
 **Profile**
 - [x] `POST /api/me/avatar` to R2
-- [ ] `/settings` page: name, handle, avatar
+- [x] `/settings` page: name, handle, avatar
 
 **Exit criteria**
 - [ ] Likes, comments, views and subscriptions work and counters stay correct after a DO flush
