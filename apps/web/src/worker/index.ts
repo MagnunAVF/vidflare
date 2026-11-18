@@ -6,6 +6,7 @@ import { notFound, onError } from './lib/errors'
 import { requestContext } from './middleware/request-context'
 import { sessionLoader } from './middleware/session'
 import { auth } from './routes/auth'
+import { channelRoutes } from './routes/channels'
 import { commentRoutes, videoCommentRoutes } from './routes/comments'
 import { debug } from './routes/debug'
 import { handleStreamEvents } from './queue/stream-events'
@@ -40,6 +41,7 @@ const app = new Hono<AppEnv>()
   .route('/videos', videoCommentRoutes)
   .route('/videos', viewRoutes)
   .route('/comments', commentRoutes)
+  .route('/channels', channelRoutes)
   .route('/studio', studio)
   .route('/webhooks', webhooks)
   .route('/debug', debug)

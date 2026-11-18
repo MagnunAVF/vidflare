@@ -17,7 +17,8 @@ const email = z
   .toLowerCase()
   .pipe(z.email('Enter a valid email').max(EMAIL_MAX, 'Email is too long'))
 
-const handle = z
+// A channel handle: lowercase, as it appears in /c/$handle. Shared by sign-up and channel routes.
+export const channelHandle = z
   .string()
   .trim()
   .toLowerCase()
@@ -31,7 +32,7 @@ export const signupInput = z.object({
     .string()
     .min(PASSWORD_MIN, `At least ${PASSWORD_MIN} characters`)
     .max(PASSWORD_MAX, `At most ${PASSWORD_MAX} characters`),
-  handle,
+  handle: channelHandle,
   name: z
     .string()
     .trim()
