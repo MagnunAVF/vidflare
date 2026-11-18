@@ -1,5 +1,5 @@
-import { avatarUploadInput } from '@vidflare/shared'
-import { eq } from 'drizzle-orm'
+import { avatarUploadInput, updateProfileInput } from '@vidflare/shared'
+import { and, eq, ne } from 'drizzle-orm'
 import { Hono } from 'hono'
 
 import { getDb } from '../db/client'
@@ -15,8 +15,43 @@ import type { AppEnv } from '../types'
 // Avatar objects never change: every upload gets a new key, so they can be cached forever.
 const AVATAR_CACHE_CONTROL = 'public, max-age=31536000, immutable'
 
+// A concurrent rename that won the unique handle index answers like the pre-check.
+const isHandleConflict = (err: unknown) =>
+  err instanceof Error && `${err.message} ${String(err.cause ?? '')}`.includes('channels.handle')
+
 export const me = new Hono<AppEnv>()
   .get('/', requireUser, (c) => c.json(toMeResponse(c.var.user), 200))
+  // Change the channel's name and/or handle. A handle someone else has is a 409. A new
+  // handle changes the channel's URL (/c/$handle); old links stop working.
+  .patch('/', requireUser, validate('json', updateProfileInput), async (c) => {
+    const changes = c.req.valid('json')
+    const user = c.var.user
+    const db = getDb(c.env.DB)
+
+    if (changes.handle !== undefined && changes.handle !== user.channel.handle) {
+      const taken = await db
+        .select({ id: channels.id })
+        .from(channels)
+        .where(and(eq(channels.handle, changes.handle), ne(channels.id, user.channel.id)))
+        .get()
+      if (taken) throw new ApiError(409, 'handle_taken')
+    }
+
+    let updated
+    try {
+      updated = await db
+        .update(channels)
+        .set(changes)
+        .where(eq(channels.id, user.channel.id))
+        .returning({ handle: channels.handle, name: channels.name })
+        .get()
+    } catch (err) {
+      if (isHandleConflict(err)) throw new ApiError(409, 'handle_taken')
+      throw err
+    }
+    if (!updated) throw new ApiError(404, 'not_found')
+    return c.json(toMeResponse({ ...user, channel: { ...user.channel, ...updated } }), 200)
+  })
   // Replace the channel's avatar: store the image in R2 under a fresh key
   // (avatars/<channelId>/<uuid>.<ext>), point the channel at it, then delete the old object.
   .post('/avatar', requireUser, validate('form', avatarUploadInput), async (c) => {

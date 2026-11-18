@@ -26,6 +26,13 @@ export const channelHandle = z
   .max(HANDLE_MAX, `At most ${HANDLE_MAX} characters`)
   .regex(HANDLE_PATTERN, 'Use lowercase letters, numbers and underscores')
 
+// A channel's display name. Shared by sign-up and the settings page.
+export const channelName = z
+  .string()
+  .trim()
+  .min(1, 'Enter a channel name')
+  .max(CHANNEL_NAME_MAX, `At most ${CHANNEL_NAME_MAX} characters`)
+
 export const signupInput = z.object({
   email,
   password: z
@@ -33,11 +40,7 @@ export const signupInput = z.object({
     .min(PASSWORD_MIN, `At least ${PASSWORD_MIN} characters`)
     .max(PASSWORD_MAX, `At most ${PASSWORD_MAX} characters`),
   handle: channelHandle,
-  name: z
-    .string()
-    .trim()
-    .min(1, 'Enter a channel name')
-    .max(CHANNEL_NAME_MAX, `At most ${CHANNEL_NAME_MAX} characters`),
+  name: channelName,
   turnstileToken: z.string().min(1, 'Complete the challenge'),
 })
 export type SignupInput = z.input<typeof signupInput>

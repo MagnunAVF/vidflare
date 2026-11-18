@@ -151,6 +151,7 @@ All routes live under `/api`, are validated with Zod, and are chained on one Hon
 | POST | `/api/auth/login` | — | Start session |
 | POST | `/api/auth/logout` | User | End session |
 | GET | `/api/me` | User | Current user and channel |
+| PATCH | `/api/me` | User | Change channel name and/or handle (409 if the handle is taken) |
 | GET | `/api/videos?cursor=` | — | Home feed (latest public, ready) |
 | GET | `/api/videos/:id` | — | Video detail + channel + counts |
 | POST | `/api/videos/uploads` | User | Create `videos` row + Stream direct upload URL |
