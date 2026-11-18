@@ -1,6 +1,8 @@
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 
+import { CommentForm } from '@/components/CommentForm'
+import { CommentList } from '@/components/CommentList'
 import { LikeButton } from '@/components/LikeButton'
 import { StreamPlayer } from '@/components/StreamPlayer'
 import { Button } from '@/components/ui/button'
@@ -77,6 +79,25 @@ function WatchPage() {
         <p className="whitespace-pre-wrap rounded-lg bg-muted/50 p-3 text-sm">
           {video.description}
         </p>
+      )}
+
+      {video.status === 'ready' && (
+        <section aria-labelledby="comments-heading" className="grid gap-4 pt-2">
+          <h2 id="comments-heading" className="text-lg font-semibold">
+            {video.commentCount === 1 ? '1 comment' : `${video.commentCount} comments`}
+          </h2>
+          {me ? (
+            <CommentForm videoId={video.id} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              <Link to="/login" className="font-medium text-foreground underline">
+                Sign in
+              </Link>{' '}
+              to comment.
+            </p>
+          )}
+          <CommentList videoId={video.id} />
+        </section>
       )}
     </main>
   )
