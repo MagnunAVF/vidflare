@@ -5,6 +5,7 @@ import { CommentForm } from '@/components/CommentForm'
 import { CommentList } from '@/components/CommentList'
 import { LikeButton } from '@/components/LikeButton'
 import { StreamPlayer } from '@/components/StreamPlayer'
+import { SubscribeButton } from '@/components/SubscribeButton'
 import { Button } from '@/components/ui/button'
 import { ApiRequestError } from '@/lib/api'
 import { meQuery } from '@/lib/auth'
@@ -64,6 +65,12 @@ function WatchPage() {
           {video.channel.name}
         </Link>
         <span>@{video.channel.handle}</span>
+        <SubscribeButton
+          channelId={video.channel.id}
+          subscribed={video.channel.subscribedByMe}
+          signedIn={Boolean(me)}
+          isOwner={video.isOwner}
+        />
         <span aria-hidden>·</span>
         <span>{formatViews(video.viewCount)}</span>
         {video.publishedAt !== null && (
