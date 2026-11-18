@@ -6,6 +6,10 @@ const compact = new Intl.NumberFormat(undefined, { notation: 'compact', maximumF
 export const formatViews = (count: number) =>
   `${count === 1 ? '1' : compact.format(count)} ${count === 1 ? 'view' : 'views'}`
 
+// 1520 → "1.5K subscribers", 1 → "1 subscriber".
+export const formatSubscribers = (count: number) =>
+  `${count === 1 ? '1' : compact.format(count)} ${count === 1 ? 'subscriber' : 'subscribers'}`
+
 // 312 → "5:12", 3725 → "1:02:05".
 export function formatDuration(seconds: number): string {
   const s = Math.max(0, Math.round(seconds))

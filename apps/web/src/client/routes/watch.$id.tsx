@@ -56,7 +56,13 @@ function WatchPage() {
       <h1 className="text-xl font-semibold">{video.title}</h1>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">{video.channel.name}</span>
+        <Link
+          to="/c/$handle"
+          params={{ handle: video.channel.handle }}
+          className="font-medium text-foreground hover:underline"
+        >
+          {video.channel.name}
+        </Link>
         <span>@{video.channel.handle}</span>
         <span aria-hidden>·</span>
         <span>{formatViews(video.viewCount)}</span>
