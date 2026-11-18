@@ -10,6 +10,7 @@ import { ApiRequestError } from '@/lib/api'
 import { meQuery } from '@/lib/auth'
 import { formatRelativeTime, formatViews } from '@/lib/format'
 import { videoQuery } from '@/lib/videos'
+import { useRecordView } from '@/lib/views'
 
 export const Route = createFileRoute('/watch/$id')({
   // Prefetch before rendering; a missing (or not yet visible) video is a not-found page.
@@ -31,11 +32,18 @@ function WatchPage() {
   const { id } = Route.useParams()
   const { data: video } = useSuspenseQuery(videoQuery(id))
   const { data: me } = useQuery(meQuery)
+  const recordView = useRecordView(id)
 
   return (
     <main className="mx-auto grid w-full max-w-5xl gap-4 px-4 py-6">
       {video.playerUrl ? (
-        <StreamPlayer src={video.playerUrl} title={video.title} />
+        <StreamPlayer
+          // Remount per video: the watched timer and its one view belong to one video.
+          key={video.id}
+          src={video.playerUrl}
+          title={video.title}
+          onWatched={() => recordView.mutate()}
+        />
       ) : (
         // Only the owner sees a video that isn't ready.
         <div className="flex aspect-video w-full items-center justify-center rounded-lg bg-muted p-6 text-center text-sm text-muted-foreground">
