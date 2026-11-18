@@ -12,8 +12,14 @@ export const HANDLE_PATTERN = /^[a-z0-9_]+$/
 
 export const CHANNEL_NAME_MAX = 50
 
+// Avatars are uploaded through the Worker to R2 (they're small; only video bytes must bypass it).
+export const AVATAR_MAX_BYTES = 2 * 1024 * 1024 // 2 MiB
+export const AVATAR_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const
+
 export const VIDEO_TITLE_MAX = 100
 export const VIDEO_DESCRIPTION_MAX = 5000
+
+export const COMMENT_MAX = 2000
 
 // Stream bills every environment's uploads to one account, so cap them everywhere.
 // Stream itself rejects a video longer than this (maxDurationSeconds on the upload).

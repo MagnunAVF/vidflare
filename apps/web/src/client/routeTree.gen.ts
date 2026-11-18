@@ -11,9 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as UploadRouteImport } from './routes/upload'
+import { Route as CHandleRouteImport } from './routes/c.$handle'
+import { Route as FeedSubscriptionsRouteImport } from './routes/feed.subscriptions'
 import { Route as WatchIdRouteImport } from './routes/watch.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -24,6 +27,11 @@ const IndexRoute = IndexRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignupRoute = SignupRouteImport.update({
@@ -41,6 +49,16 @@ const UploadRoute = UploadRouteImport.update({
   path: '/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CHandleRoute = CHandleRouteImport.update({
+  id: '/c/$handle',
+  path: '/c/$handle',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedSubscriptionsRoute = FeedSubscriptionsRouteImport.update({
+  id: '/feed/subscriptions',
+  path: '/feed/subscriptions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WatchIdRoute = WatchIdRouteImport.update({
   id: '/watch/$id',
   path: '/watch/$id',
@@ -50,49 +68,82 @@ const WatchIdRoute = WatchIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/studio': typeof StudioRoute
   '/upload': typeof UploadRoute
+  '/c/$handle': typeof CHandleRoute
+  '/feed/subscriptions': typeof FeedSubscriptionsRoute
   '/watch/$id': typeof WatchIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/studio': typeof StudioRoute
   '/upload': typeof UploadRoute
+  '/c/$handle': typeof CHandleRoute
+  '/feed/subscriptions': typeof FeedSubscriptionsRoute
   '/watch/$id': typeof WatchIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/settings': typeof SettingsRoute
   '/signup': typeof SignupRoute
   '/studio': typeof StudioRoute
   '/upload': typeof UploadRoute
+  '/c/$handle': typeof CHandleRoute
+  '/feed/subscriptions': typeof FeedSubscriptionsRoute
   '/watch/$id': typeof WatchIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/signup' | '/studio' | '/upload' | '/watch/$id'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/settings'
+    | '/signup'
+    | '/studio'
+    | '/upload'
+    | '/c/$handle'
+    | '/feed/subscriptions'
+    | '/watch/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/signup' | '/studio' | '/upload' | '/watch/$id'
+  to:
+    | '/'
+    | '/login'
+    | '/settings'
+    | '/signup'
+    | '/studio'
+    | '/upload'
+    | '/c/$handle'
+    | '/feed/subscriptions'
+    | '/watch/$id'
   id:
     | '__root__'
     | '/'
     | '/login'
+    | '/settings'
     | '/signup'
     | '/studio'
     | '/upload'
+    | '/c/$handle'
+    | '/feed/subscriptions'
     | '/watch/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
+  SettingsRoute: typeof SettingsRoute
   SignupRoute: typeof SignupRoute
   StudioRoute: typeof StudioRoute
   UploadRoute: typeof UploadRoute
+  CHandleRoute: typeof CHandleRoute
+  FeedSubscriptionsRoute: typeof FeedSubscriptionsRoute
   WatchIdRoute: typeof WatchIdRoute
 }
 
@@ -110,6 +161,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/signup': {
@@ -133,6 +191,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/c/$handle': {
+      id: '/c/$handle'
+      path: '/c/$handle'
+      fullPath: '/c/$handle'
+      preLoaderRoute: typeof CHandleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feed/subscriptions': {
+      id: '/feed/subscriptions'
+      path: '/feed/subscriptions'
+      fullPath: '/feed/subscriptions'
+      preLoaderRoute: typeof FeedSubscriptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/watch/$id': {
       id: '/watch/$id'
       path: '/watch/$id'
@@ -146,9 +218,12 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
+  SettingsRoute: SettingsRoute,
   SignupRoute: SignupRoute,
   StudioRoute: StudioRoute,
   UploadRoute: UploadRoute,
+  CHandleRoute: CHandleRoute,
+  FeedSubscriptionsRoute: FeedSubscriptionsRoute,
   WatchIdRoute: WatchIdRoute,
 }
 export const routeTree = rootRouteImport

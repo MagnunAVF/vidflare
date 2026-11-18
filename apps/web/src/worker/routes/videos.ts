@@ -1,19 +1,18 @@
 import {
   createUploadInput,
   cursorQuery,
-  FEED_PAGE_SIZE,
-  type Page,
   updateVideoInput,
   UPLOAD_MAX_DURATION_S,
   videoIdParam,
 } from '@vidflare/shared'
-import { and, desc, eq, isNotNull, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 
 import { getDb } from '../db/client'
-import { channels, videos } from '../db/schema'
-import { decodeCursor, encodeCursor } from '../lib/cursor'
+import { channels, likes, videos } from '../db/schema'
 import { ApiError } from '../lib/errors'
+import { publicVideoPage } from '../lib/feed'
+import { subscribedBy } from '../lib/subscriptions'
 import { uuidv7 } from '../lib/id'
 import { requireUser } from '../middleware/session'
 import { validate } from '../middleware/validate'
@@ -26,46 +25,7 @@ export const videoRoutes = new Hono<AppEnv>()
   // (published_at, id), served by videos_home_feed_idx; never OFFSET.
   .get('/', validate('query', cursorQuery), async (c) => {
     const { cursor } = c.req.valid('query')
-    const after = cursor === undefined ? null : decodeCursor(cursor)
-    if (cursor !== undefined && !after) throw new ApiError(400, 'invalid_cursor')
-
-    const rows = await getDb(c.env.DB)
-      .select({
-        id: videos.id,
-        title: videos.title,
-        thumbnailUrl: videos.thumbnailUrl,
-        durationS: videos.durationS,
-        viewCount: videos.viewCount,
-        publishedAt: videos.publishedAt,
-        channel: { handle: channels.handle, name: channels.name, avatarKey: channels.avatarKey },
-      })
-      .from(videos)
-      .innerJoin(channels, eq(channels.id, videos.channelId))
-      .where(
-        and(
-          eq(videos.status, 'ready'),
-          eq(videos.visibility, 'public'),
-          isNotNull(videos.publishedAt),
-          after
-            ? sql`(${videos.publishedAt}, ${videos.id}) < (${after.at}, ${after.id})`
-            : undefined,
-        ),
-      )
-      .orderBy(desc(videos.publishedAt), desc(videos.id))
-      // One extra row tells whether there is a next page.
-      .limit(FEED_PAGE_SIZE + 1)
-      .all()
-
-    const items = rows.slice(0, FEED_PAGE_SIZE).map((row) => ({
-      ...row,
-      publishedAt: row.publishedAt ?? 0,
-    }))
-    const last = items.at(-1)
-    const nextCursor =
-      rows.length > FEED_PAGE_SIZE && last
-        ? encodeCursor({ at: last.publishedAt, id: last.id })
-        : null
-    return c.json({ items, nextCursor } satisfies Page<(typeof items)[number]>, 200)
+    return c.json(await publicVideoPage(getDb(c.env.DB), cursor), 200)
   })
   .post('/uploads', requireUser, validate('json', createUploadInput), async (c) => {
     const input = c.req.valid('json')
@@ -149,6 +109,7 @@ export const videoRoutes = new Hono<AppEnv>()
   // is visible to anyone with the link; one that isn't ready yet only to its owner.
   .get('/:id', validate('param', videoIdParam), async (c) => {
     const { id } = c.req.valid('param')
+    const userId = c.var.user?.id
     const row = await getDb(c.env.DB)
       .select({
         id: videos.id,
@@ -163,12 +124,17 @@ export const videoRoutes = new Hono<AppEnv>()
         likeCount: videos.likeCount,
         commentCount: videos.commentCount,
         publishedAt: videos.publishedAt,
+        // The viewer's own like, for the LikeButton's initial state (likes PK lookup).
+        likedByMe: userId
+          ? sql<number>`exists(select 1 from ${likes} where ${likes.userId} = ${userId} and ${likes.videoId} = ${videos.id})`
+          : sql<number>`0`,
         channel: {
           id: channels.id,
           handle: channels.handle,
           name: channels.name,
           avatarKey: channels.avatarKey,
           subscriberCount: channels.subscriberCount,
+          subscribedByMe: subscribedBy(userId),
         },
       })
       .from(videos)
@@ -179,10 +145,12 @@ export const videoRoutes = new Hono<AppEnv>()
     const isOwner = row !== undefined && c.var.user?.channel.id === row.channel.id
     if (!row || (row.status !== 'ready' && !isOwner)) throw new ApiError(404, 'not_found')
 
-    const { streamUid, ...video } = row
+    const { streamUid, likedByMe, ...video } = row
     return c.json(
       {
         ...video,
+        channel: { ...video.channel, subscribedByMe: Boolean(video.channel.subscribedByMe) },
+        likedByMe: Boolean(likedByMe),
         isOwner,
         // Null until Stream has a playable video.
         playerUrl:
