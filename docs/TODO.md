@@ -106,7 +106,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] `/c/$handle` page: `ChannelHeader`, `VideoGrid`
 - [x] `PUT / DELETE /api/channels/:id/subscribe` (recompute `subscriber_count` in batch, no self-subscribe)
 - [x] `SubscribeButton` with optimistic update
-- [ ] `GET /api/feed/subscriptions?cursor=` + `/feed/subscriptions` page
+- [x] `GET /api/feed/subscriptions?cursor=` + `/feed/subscriptions` page
 
 **Profile**
 - [ ] `POST /api/me/avatar` to R2

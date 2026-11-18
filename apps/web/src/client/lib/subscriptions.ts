@@ -1,4 +1,10 @@
-import { type Query, type QueryKey, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  infiniteQueryOptions,
+  type Query,
+  type QueryKey,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
 
 import { api, unwrap } from './api'
 
@@ -21,8 +27,18 @@ const showsSubscribeState = (query: Query) =>
   query.queryKey.length === 2 &&
   (query.queryKey[0] === 'channels' || query.queryKey[0] === 'videos')
 
-// The subscriptions feed (GET /api/feed/subscriptions).
+// The subscriptions feed (GET /api/feed/subscriptions?cursor=), page by page.
 export const SUBSCRIPTIONS_FEED_KEY = ['feed', 'subscriptions'] as const
+export const subscriptionsFeedQuery = infiniteQueryOptions({
+  queryKey: SUBSCRIPTIONS_FEED_KEY,
+  queryFn: async ({ pageParam }) =>
+    unwrap(
+      await api.api.feed.subscriptions.$get({ query: pageParam ? { cursor: pageParam } : {} }),
+    ),
+  initialPageParam: undefined as string | undefined,
+  getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  staleTime: 60_000,
+})
 
 // Subscribe or unsubscribe (PUT / DELETE /api/channels/:id/subscribe). Optimistic: every
 // cached channel page and watch page for this channel flips at once, rolls back if the

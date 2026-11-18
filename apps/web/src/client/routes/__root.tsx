@@ -35,6 +35,9 @@ function Header() {
         {me ? (
           <>
             <Button asChild variant="ghost" size="sm">
+              <Link to="/feed/subscriptions">Subscriptions</Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
               <Link to="/studio">Studio</Link>
             </Button>
             <Button asChild size="sm">

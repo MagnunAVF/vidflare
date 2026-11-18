@@ -15,6 +15,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as CHandleRouteImport } from './routes/c.$handle'
+import { Route as FeedSubscriptionsRouteImport } from './routes/feed.subscriptions'
 import { Route as WatchIdRouteImport } from './routes/watch.$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +48,11 @@ const CHandleRoute = CHandleRouteImport.update({
   path: '/c/$handle',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FeedSubscriptionsRoute = FeedSubscriptionsRouteImport.update({
+  id: '/feed/subscriptions',
+  path: '/feed/subscriptions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WatchIdRoute = WatchIdRouteImport.update({
   id: '/watch/$id',
   path: '/watch/$id',
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/studio': typeof StudioRoute
   '/upload': typeof UploadRoute
   '/c/$handle': typeof CHandleRoute
+  '/feed/subscriptions': typeof FeedSubscriptionsRoute
   '/watch/$id': typeof WatchIdRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/studio': typeof StudioRoute
   '/upload': typeof UploadRoute
   '/c/$handle': typeof CHandleRoute
+  '/feed/subscriptions': typeof FeedSubscriptionsRoute
   '/watch/$id': typeof WatchIdRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/studio': typeof StudioRoute
   '/upload': typeof UploadRoute
   '/c/$handle': typeof CHandleRoute
+  '/feed/subscriptions': typeof FeedSubscriptionsRoute
   '/watch/$id': typeof WatchIdRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/studio'
     | '/upload'
     | '/c/$handle'
+    | '/feed/subscriptions'
     | '/watch/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/studio'
     | '/upload'
     | '/c/$handle'
+    | '/feed/subscriptions'
     | '/watch/$id'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/studio'
     | '/upload'
     | '/c/$handle'
+    | '/feed/subscriptions'
     | '/watch/$id'
   fileRoutesById: FileRoutesById
 }
@@ -118,6 +130,7 @@ export interface RootRouteChildren {
   StudioRoute: typeof StudioRoute
   UploadRoute: typeof UploadRoute
   CHandleRoute: typeof CHandleRoute
+  FeedSubscriptionsRoute: typeof FeedSubscriptionsRoute
   WatchIdRoute: typeof WatchIdRoute
 }
 
@@ -165,6 +178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CHandleRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/feed/subscriptions': {
+      id: '/feed/subscriptions'
+      path: '/feed/subscriptions'
+      fullPath: '/feed/subscriptions'
+      preLoaderRoute: typeof FeedSubscriptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/watch/$id': {
       id: '/watch/$id'
       path: '/watch/$id'
@@ -182,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   StudioRoute: StudioRoute,
   UploadRoute: UploadRoute,
   CHandleRoute: CHandleRoute,
+  FeedSubscriptionsRoute: FeedSubscriptionsRoute,
   WatchIdRoute: WatchIdRoute,
 }
 export const routeTree = rootRouteImport
