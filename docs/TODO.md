@@ -93,7 +93,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 **Likes and comments**
 - [x] `PUT / DELETE /api/videos/:id/like` (`ON CONFLICT DO NOTHING` + `like_count` in one batch)
 - [x] `LikeButton` with optimistic update and rollback
-- [ ] `GET /api/videos/:id/comments?cursor=`, `POST` (Turnstile), `DELETE /api/comments/:id` (soft delete, owner)
+- [x] `GET /api/videos/:id/comments?cursor=`, `POST` (Turnstile), `DELETE /api/comments/:id` (soft delete, owner)
 - [ ] `CommentList` + `CommentForm`; `comment_count` updated in the same batch
 
 **Views**

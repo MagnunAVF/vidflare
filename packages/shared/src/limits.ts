@@ -15,6 +15,8 @@ export const CHANNEL_NAME_MAX = 50
 export const VIDEO_TITLE_MAX = 100
 export const VIDEO_DESCRIPTION_MAX = 5000
 
+export const COMMENT_MAX = 2000
+
 // Stream bills every environment's uploads to one account, so cap them everywhere.
 // Stream itself rejects a video longer than this (maxDurationSeconds on the upload).
 export const UPLOAD_MAX_DURATION_S = 15 * 60
