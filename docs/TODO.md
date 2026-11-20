@@ -118,7 +118,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 ## Phase 4: Launch prep (weeks 7–8)
 
 **Search**
-- [ ] `videos_fts` FTS5 table + sync triggers (raw SQL migration)
+- [x] `videos_fts` FTS5 table + sync triggers (raw SQL migration)
 - [ ] `GET /api/search?q=` joined to `videos` with the public-listing filter
 - [ ] `/search` page: `SearchBar`, `VideoList`, Zod-validated search params
 
