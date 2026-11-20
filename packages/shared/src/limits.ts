@@ -21,6 +21,9 @@ export const VIDEO_DESCRIPTION_MAX = 5000
 
 export const COMMENT_MAX = 2000
 
+// Long enough for any real query; the FTS query built from it stays small.
+export const SEARCH_QUERY_MAX = 100
+
 // Stream bills every environment's uploads to one account, so cap them everywhere.
 // Stream itself rejects a video longer than this (maxDurationSeconds on the upload).
 export const UPLOAD_MAX_DURATION_S = 15 * 60
