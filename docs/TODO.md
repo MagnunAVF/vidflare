@@ -120,7 +120,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 **Search**
 - [x] `videos_fts` FTS5 table + sync triggers (raw SQL migration)
 - [x] `GET /api/search?q=` joined to `videos` with the public-listing filter
-- [ ] `/search` page: `SearchBar`, `VideoList`, Zod-validated search params
+- [x] `/search` page: `SearchBar`, `VideoList`, Zod-validated search params
 
 **Cache and abuse protection**
 - [ ] KV cache for home feed, channel pages and video detail (60 s); purge on writes and in the queue consumer

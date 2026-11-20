@@ -14,3 +14,8 @@ export const searchText = z
 // GET /api/search?q=&cursor=
 export const searchQuery = cursorQuery.extend({ q: searchText })
 export type SearchQuery = z.input<typeof searchQuery>
+
+// The /search?q= page's URL params. A hand-edited URL can hold anything, so a missing, blank or
+// too-long q means "no search yet" instead of an error page.
+export const searchPageParams = z.object({ q: searchText.optional().catch(undefined) })
+export type SearchPageParams = z.output<typeof searchPageParams>
