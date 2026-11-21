@@ -6,10 +6,11 @@ import {
   videoIdParam,
 } from '@vidflare/shared'
 import { and, eq, sql } from 'drizzle-orm'
-import { Hono } from 'hono'
+import { type Context, Hono } from 'hono'
 
 import { getDb } from '../db/client'
 import { channels, likes, videos } from '../db/schema'
+import { cached, cacheKeys, purgeCache, videoCacheKeys } from '../lib/cache'
 import { ApiError } from '../lib/errors'
 import { publicVideoPage } from '../lib/feed'
 import { subscribedBy } from '../lib/subscriptions'
@@ -25,7 +26,14 @@ export const videoRoutes = new Hono<AppEnv>()
   // (published_at, id), served by videos_home_feed_idx; never OFFSET.
   .get('/', validate('query', cursorQuery), async (c) => {
     const { cursor } = c.req.valid('query')
-    return c.json(await publicVideoPage(getDb(c.env.DB), cursor), 200)
+    const db = getDb(c.env.DB)
+    // Only the first page is cached: it's the one everybody opens, and a single key keeps the
+    // purge on writes to one delete. Later pages read D1.
+    const page =
+      cursor === undefined
+        ? await cached(c, cacheKeys.homeFeed(), () => publicVideoPage(db, undefined))
+        : await publicVideoPage(db, cursor)
+    return c.json(page, 200)
   })
   .post('/uploads', requireUser, validate('json', createUploadInput), async (c) => {
     const input = c.req.valid('json')
@@ -107,59 +115,13 @@ export const videoRoutes = new Hono<AppEnv>()
   })
   // Watch page data: the video, its channel and counters. A ready video (public or unlisted)
   // is visible to anyone with the link; one that isn't ready yet only to its owner.
+  // Signed-out visitors all get the same response, so theirs comes from KV (a video that
+  // isn't ready is a 404 for them, which is never cached).
   .get('/:id', validate('param', videoIdParam), async (c) => {
     const { id } = c.req.valid('param')
-    const userId = c.var.user?.id
-    const row = await getDb(c.env.DB)
-      .select({
-        id: videos.id,
-        streamUid: videos.streamUid,
-        title: videos.title,
-        description: videos.description,
-        status: videos.status,
-        visibility: videos.visibility,
-        durationS: videos.durationS,
-        thumbnailUrl: videos.thumbnailUrl,
-        viewCount: videos.viewCount,
-        likeCount: videos.likeCount,
-        commentCount: videos.commentCount,
-        publishedAt: videos.publishedAt,
-        // The viewer's own like, for the LikeButton's initial state (likes PK lookup).
-        likedByMe: userId
-          ? sql<number>`exists(select 1 from ${likes} where ${likes.userId} = ${userId} and ${likes.videoId} = ${videos.id})`
-          : sql<number>`0`,
-        channel: {
-          id: channels.id,
-          handle: channels.handle,
-          name: channels.name,
-          avatarKey: channels.avatarKey,
-          subscriberCount: channels.subscriberCount,
-          subscribedByMe: subscribedBy(userId),
-        },
-      })
-      .from(videos)
-      .innerJoin(channels, eq(channels.id, videos.channelId))
-      .where(eq(videos.id, id))
-      .get()
-
-    const isOwner = row !== undefined && c.var.user?.channel.id === row.channel.id
-    if (!row || (row.status !== 'ready' && !isOwner)) throw new ApiError(404, 'not_found')
-
-    const { streamUid, likedByMe, ...video } = row
-    return c.json(
-      {
-        ...video,
-        channel: { ...video.channel, subscribedByMe: Boolean(video.channel.subscribedByMe) },
-        likedByMe: Boolean(likedByMe),
-        isOwner,
-        // Null until Stream has a playable video.
-        playerUrl:
-          row.status === 'ready' && streamUid
-            ? streamPlayerUrl(c.env.STREAM_CUSTOMER_CODE, streamUid)
-            : null,
-      },
-      200,
-    )
+    const load = () => videoDetail(c, id)
+    const video = c.var.user ? await load() : await cached(c, cacheKeys.video(id), load)
+    return c.json(video, 200)
   })
   // Edit title, description or visibility. Owner check in the SQL WHERE: someone else's video
   // updates nothing and answers 404, like a missing one.
@@ -183,6 +145,7 @@ export const videoRoutes = new Hono<AppEnv>()
         })
         .get()
       if (!updated) throw new ApiError(404, 'not_found')
+      await purgeCache(c.env.CACHE, videoCacheKeys(id, c.var.user.channel.handle))
       return c.json(updated, 200)
     },
   )
@@ -199,5 +162,58 @@ export const videoRoutes = new Hono<AppEnv>()
     // Already gone in Stream counts as deleted.
     if (video.streamUid) await deleteVideo(streamConfig(c.env), video.streamUid)
     await db.delete(videos).where(owned)
+    await purgeCache(c.env.CACHE, videoCacheKeys(id, c.var.user.channel.handle))
     return c.body(null, 204)
   })
+
+// The watch page response for the current viewer, or a 404 ApiError.
+async function videoDetail(c: Context<AppEnv>, id: string) {
+  const userId = c.var.user?.id
+  const row = await getDb(c.env.DB)
+    .select({
+      id: videos.id,
+      streamUid: videos.streamUid,
+      title: videos.title,
+      description: videos.description,
+      status: videos.status,
+      visibility: videos.visibility,
+      durationS: videos.durationS,
+      thumbnailUrl: videos.thumbnailUrl,
+      viewCount: videos.viewCount,
+      likeCount: videos.likeCount,
+      commentCount: videos.commentCount,
+      publishedAt: videos.publishedAt,
+      // The viewer's own like, for the LikeButton's initial state (likes PK lookup).
+      likedByMe: userId
+        ? sql<number>`exists(select 1 from ${likes} where ${likes.userId} = ${userId} and ${likes.videoId} = ${videos.id})`
+        : sql<number>`0`,
+      channel: {
+        id: channels.id,
+        handle: channels.handle,
+        name: channels.name,
+        avatarKey: channels.avatarKey,
+        subscriberCount: channels.subscriberCount,
+        subscribedByMe: subscribedBy(userId),
+      },
+    })
+    .from(videos)
+    .innerJoin(channels, eq(channels.id, videos.channelId))
+    .where(eq(videos.id, id))
+    .get()
+
+  const isOwner = row !== undefined && c.var.user?.channel.id === row.channel.id
+  if (!row || (row.status !== 'ready' && !isOwner)) throw new ApiError(404, 'not_found')
+
+  const { streamUid, likedByMe, ...video } = row
+  return {
+    ...video,
+    channel: { ...video.channel, subscribedByMe: Boolean(video.channel.subscribedByMe) },
+    likedByMe: Boolean(likedByMe),
+    isOwner,
+    // Null until Stream has a playable video.
+    playerUrl:
+      row.status === 'ready' && streamUid
+        ? streamPlayerUrl(c.env.STREAM_CUSTOMER_CODE, streamUid)
+        : null,
+  }
+}

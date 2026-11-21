@@ -123,7 +123,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] `/search` page: `SearchBar`, `VideoList`, Zod-validated search params
 
 **Cache and abuse protection**
-- [ ] KV cache for home feed, channel pages and video detail (60 s); purge on writes and in the queue consumer
+- [x] KV cache for home feed, channel pages and video detail (60 s); purge on writes and in the queue consumer
 - [ ] Turnstile on sign-up, comment and upload (verified end to end)
 - [ ] Rate limiting rules (login, comments, uploads, views)
 - [ ] Upload length cap (e.g. 15 min) and per-creator storage cap

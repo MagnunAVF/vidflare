@@ -9,6 +9,7 @@ import { ApiError } from '../lib/errors'
 import type { StreamEvent } from '../lib/stream-events'
 import { requireUser } from '../middleware/session'
 import { validate } from '../middleware/validate'
+import { purgeVideoByStreamUid } from '../lib/cache'
 import { applyStreamEvent } from '../queue/stream-events'
 import { getVideo, streamConfig } from '../services/stream'
 import type { AppEnv } from '../types'
@@ -99,7 +100,9 @@ export const studio = new Hono<AppEnv>()
         .set({ status: 'processing' })
         .where(and(owned, eq(videos.status, 'uploading')))
     }
-    if (event) await applyStreamEvent(db, event)
+    if (event && (await applyStreamEvent(db, event)) === 'applied') {
+      await purgeVideoByStreamUid(c.env.CACHE, db, uid)
+    }
 
     const current = await db.select({ status: videos.status }).from(videos).where(owned).get()
     return c.json(

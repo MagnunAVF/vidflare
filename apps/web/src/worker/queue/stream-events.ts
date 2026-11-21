@@ -3,6 +3,7 @@ import { and, eq, inArray, ne, sql } from 'drizzle-orm'
 
 import { getDb, type Db } from '../db/client'
 import { videos } from '../db/schema'
+import { purgeVideoByStreamUid } from '../lib/cache'
 import { streamEvent, type StreamEvent } from '../lib/stream-events'
 
 export type ApplyResult = 'applied' | 'unchanged' | 'unknown_uid' | 'video_mismatch'
@@ -56,7 +57,7 @@ const log = (level: 'info' | 'warn' | 'error', fields: Record<string, unknown>) 
 
 // Consumer for this environment's stream-events queue (fed by the Stream webhook handler).
 // Each message is acked on its own; only an unexpected failure (e.g. D1 down) retries it.
-// Home feed and channel KV keys get purged here once the KV cache exists (Phase 4).
+// A status change purges the video's KV keys (watch page, home feed, channel videos).
 export async function handleStreamEvents(batch: MessageBatch<unknown>, env: Env): Promise<void> {
   const db = getDb(env.DB)
   for (const message of batch.messages) {
@@ -72,6 +73,8 @@ export async function handleStreamEvents(batch: MessageBatch<unknown>, env: Env)
 
     try {
       const result = await applyStreamEvent(db, event)
+      // purgeCache logs its own failures, so the event is never retried over the cache.
+      if (result === 'applied') await purgeVideoByStreamUid(env.CACHE, db, event.uid)
       if (result === 'applied' && event.state === 'ready') {
         log('info', { msg: 'video.ready', ...ids, durationS: event.durationS })
       } else if (result === 'applied') {
