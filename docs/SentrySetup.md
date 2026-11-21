@@ -138,3 +138,21 @@ Notes:
 - **#2 must count 5xx only.** Sentry's `failure_rate()` treats any non-OK status as a failure, including our expected 4xx answers (every signed-out page load gets a 401 from `/api/me`, unknown ids get 404s), so it would alert all the time.
 - **#5** only means something in production: the account's single Stream webhook lands there. Any count is either a misconfigured `STREAM_WEBHOOK_SECRET` or someone probing the endpoint.
 - **#6**: the monitor already knows its schedule from the Worker, so a night with no check-in, or a run that throws, becomes an issue. Set its failure tolerance to 1.
+
+## 9. Dashboards
+
+One dashboard, **vidflare – operations**, with the dashboard filter set to environment `production` (switch it to `stage` to check a deploy there). Build each widget in Explore (Metrics or Traces) and use **Save As → Dashboard widget**.
+
+| Widget | Source | Query | Display |
+| --- | --- | --- | --- |
+| Upload funnel | Application Metrics | `sum(upload.started)`, `sum(upload.ready)`, `sum(upload.failed)` | bar chart, 1-day interval |
+| Why uploads fail | Application Metrics | `sum(upload.failed)` grouped by `reason` | table, last 7 days |
+| Time to ready | Application Metrics | `p50(video.processing_time)`, `p95(video.processing_time)` | line chart |
+| API latency per route | Spans | `span.op:http.server`, `p95(span.duration)` grouped by `transaction` (the route pattern) | table sorted by p95, top 20 |
+| Queue processing time | Spans | `span.name:queue.stream_event`, `p50(span.duration)`, `p95(span.duration)` | line chart |
+| Views per hour | Application Metrics | `sum(video.view_recorded)` | bar chart, 1-hour interval |
+| View flushes | Application Metrics | `p50(stats.flush_rows)`, `p95(stats.flush_rows)` | line chart |
+| Failed sign-ins | Application Metrics | `sum(auth.login_failed)` grouped by `reason` | bar chart, 1-hour interval |
+| Creator and viewer experience | Application Metrics | `p75(upload.client_duration)`, `p75(player.start_time)` | line chart |
+
+The first four answer the roadmap's questions (upload funnel, API p95 per route, queue processing time, views per hour); the rest are what to look at when one of the alerts fires.
