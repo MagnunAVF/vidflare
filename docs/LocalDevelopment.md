@@ -39,6 +39,21 @@ Tests (`pnpm test`) use the same bindings, isolated per test, with migrations ap
 
 Stream isn't a Worker binding (the Worker calls its REST API with a token), so it's switched by credentials, not by `remote: true`.
 
+## End-to-end tests
+
+`apps/web/e2e/journey.spec.ts` (Playwright) walks the core journey through the real UI: sign up → upload → watch → like → comment.
+
+```sh
+pnpm --filter web exec playwright install chromium    # once per machine / Playwright version
+pnpm test:e2e                                         # local: starts `pnpm dev` if it isn't running
+E2E_BASE_URL=https://<stage host> pnpm test:e2e       # stage
+```
+
+- **What it creates:** a fresh account (`e2e…@example.com`, kept: accounts can't be deleted in the MVP) and one real Stream video from `e2e/fixtures/clip.mp4` (5 s), which it deletes at the end, pass or fail.
+- **Encoding:** on stage the webhook marks the video ready; locally no webhook arrives, so the test clicks **Re-check** in the studio until it's ready (harmless on stage). It allows Stream up to 4 minutes.
+- **Turnstile:** locally the test keys always pass. On stage the real widget runs, and it may challenge a headless browser; if the run stops at "the Turnstile widget did not pass", that's why.
+- Failures keep a trace, screenshot and video in `apps/web/test-results/` (open the trace with `pnpm --filter web exec playwright show-trace <trace.zip>`).
+
 ## Rules
 
 - Never put production credentials in `.dev.vars`, and never point local dev at a production resource.
