@@ -9,6 +9,7 @@ import { uuidv7 } from '../lib/id'
 import { toMeResponse } from '../lib/me'
 import { hashPassword, verifyPassword } from '../lib/password'
 import { clearSessionCookie, deleteSession, newSession, setSessionCookie } from '../lib/session'
+import { byIp, enforceRateLimit, hashedKey } from '../middleware/rate-limit'
 import { requireUser } from '../middleware/session'
 import { validate } from '../middleware/validate'
 import { verifyTurnstile } from '../services/turnstile'
@@ -26,7 +27,9 @@ export const auth = new Hono<AppEnv>()
   .post('/signup', validate('json', signupInput), async (c) => {
     const input = c.req.valid('json')
 
-    // Cheap rejections first: bots, then taken email/handle, and only then the PBKDF2 cost.
+    // Cheap rejections first: floods, bots, then taken email/handle, and only then the PBKDF2
+    // cost. Sign-up and login share the per-IP auth limit.
+    await enforceRateLimit(c, 'AUTH_LIMITER', [byIp(c)])
     const human = await verifyTurnstile(
       c.env.TURNSTILE_SECRET,
       input.turnstileToken,
@@ -66,6 +69,10 @@ export const auth = new Hono<AppEnv>()
   })
   .post('/login', validate('json', loginInput), async (c) => {
     const { email, password } = c.req.valid('json')
+    // Brute force: per IP (many accounts from one place) and per account (one account from many
+    // places), before any D1 read or PBKDF2 work. Over the limit is a 429 either way, so it
+    // doesn't reveal whether the email has an account.
+    await enforceRateLimit(c, 'AUTH_LIMITER', [byIp(c), await hashedKey('email', email)])
     const db = getDb(c.env.DB)
     const row = await db
       .select({

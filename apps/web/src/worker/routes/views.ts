@@ -6,6 +6,7 @@ import { getDb } from '../db/client'
 import { videos } from '../db/schema'
 import { ApiError } from '../lib/errors'
 import { viewerKey } from '../lib/viewer'
+import { byIp, rateLimit } from '../middleware/rate-limit'
 import { validate } from '../middleware/validate'
 import type { AppEnv } from '../types'
 
@@ -14,6 +15,8 @@ import type { AppEnv } from '../types'
 // total to D1 on its own alarm.
 export const viewRoutes = new Hono<AppEnv>().post(
   '/:id/view',
+  // Per IP: dropping the viewer cookie gets a new dedupe key, but not a new IP.
+  rateLimit('VIEW_LIMITER', byIp),
   validate('param', videoIdParam),
   async (c) => {
     const { id } = c.req.valid('param')

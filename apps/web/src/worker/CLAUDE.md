@@ -52,6 +52,10 @@ Hono app on Cloudflare Workers. It also exports the queue consumer, the `schedul
 - Sign-up creates user + channel + session in one `db.batch()` after verifying Turnstile.
 - Turnstile is required on sign-up, comment creation and upload creation.
 
+## Rate limits
+
+Workers Rate Limiting bindings (`ratelimits` in `wrangler.jsonc`, `middleware/rate-limit.ts`), 60 s windows, counted per Cloudflare location: `AUTH_LIMITER` 10 (sign-up and login per IP, login also per hashed email), `COMMENT_LIMITER` 5 per user, `UPLOAD_LIMITER` 5 per user, `VIEW_LIMITER` 60 per IP. Check them before Turnstile, PBKDF2, Stream or D1 work. Over the limit is 429 `rate_limited` with `Retry-After`; a failing limiter lets the request through. Per-IP limits are skipped without `CF-Connecting-IP` (local dev and tests). Each env needs its own `namespace_id`s.
+
 ## Caching
 
 KV `CACHE` (`lib/cache.ts`), 60 s TTL: the first page of the home feed and of each channel's videos (same for every viewer), and the channel and watch pages for signed-out requests only. Signed-in responses carry per-viewer fields and live counters, so they read D1. Later pages read D1. 404s are never cached.

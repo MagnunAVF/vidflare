@@ -15,6 +15,7 @@ import { ApiError } from '../lib/errors'
 import { publicVideoPage } from '../lib/feed'
 import { subscribedBy } from '../lib/subscriptions'
 import { uuidv7 } from '../lib/id'
+import { byUser, rateLimit } from '../middleware/rate-limit'
 import { requireUser } from '../middleware/session'
 import { validate } from '../middleware/validate'
 import { createDirectUpload, deleteVideo, streamConfig, streamPlayerUrl } from '../services/stream'
@@ -35,47 +36,53 @@ export const videoRoutes = new Hono<AppEnv>()
         : await publicVideoPage(db, cursor)
     return c.json(page, 200)
   })
-  .post('/uploads', requireUser, validate('json', createUploadInput), async (c) => {
-    const input = c.req.valid('json')
+  .post(
+    '/uploads',
+    requireUser,
+    rateLimit('UPLOAD_LIMITER', byUser),
+    validate('json', createUploadInput),
+    async (c) => {
+      const input = c.req.valid('json')
 
-    const human = await verifyTurnstile(
-      c.env.TURNSTILE_SECRET,
-      input.turnstileToken,
-      c.req.header('CF-Connecting-IP'),
-    )
-    if (!human) throw new ApiError(403, 'turnstile_failed')
+      const human = await verifyTurnstile(
+        c.env.TURNSTILE_SECRET,
+        input.turnstileToken,
+        c.req.header('CF-Connecting-IP'),
+      )
+      if (!human) throw new ApiError(403, 'turnstile_failed')
 
-    // The id exists before the Stream video so the upload can carry it in meta.videoId, and
-    // the row is written once, already linked to its stream_uid. meta.env lets production's
-    // webhook handler route Stream's events back to this environment.
-    const now = Date.now()
-    const videoId = uuidv7(now)
-    const stream = streamConfig(c.env)
-    const upload = await createDirectUpload(stream, {
-      sizeBytes: input.sizeBytes,
-      maxDurationSeconds: UPLOAD_MAX_DURATION_S,
-      meta: { env: c.env.ENVIRONMENT, videoId },
-    })
-
-    try {
-      await getDb(c.env.DB).insert(videos).values({
-        id: videoId,
-        channelId: c.var.user.channel.id,
-        streamUid: upload.uid,
-        title: input.title,
-        description: input.description,
-        visibility: input.visibility,
-        status: 'uploading',
-        createdAt: now,
+      // The id exists before the Stream video so the upload can carry it in meta.videoId, and
+      // the row is written once, already linked to its stream_uid. meta.env lets production's
+      // webhook handler route Stream's events back to this environment.
+      const now = Date.now()
+      const videoId = uuidv7(now)
+      const stream = streamConfig(c.env)
+      const upload = await createDirectUpload(stream, {
+        sizeBytes: input.sizeBytes,
+        maxDurationSeconds: UPLOAD_MAX_DURATION_S,
+        meta: { env: c.env.ENVIRONMENT, videoId },
       })
-    } catch (err) {
-      // No row means nobody will ever use or clean up this Stream video: remove it now.
-      await deleteVideo(stream, upload.uid).catch(() => {})
-      throw err
-    }
 
-    return c.json({ videoId, uploadUrl: upload.uploadUrl }, 201)
-  })
+      try {
+        await getDb(c.env.DB).insert(videos).values({
+          id: videoId,
+          channelId: c.var.user.channel.id,
+          streamUid: upload.uid,
+          title: input.title,
+          description: input.description,
+          visibility: input.visibility,
+          status: 'uploading',
+          createdAt: now,
+        })
+      } catch (err) {
+        // No row means nobody will ever use or clean up this Stream video: remove it now.
+        await deleteVideo(stream, upload.uid).catch(() => {})
+        throw err
+      }
+
+      return c.json({ videoId, uploadUrl: upload.uploadUrl }, 201)
+    },
+  )
   // The browser finished sending the bytes: uploading → processing. Only from `uploading`, so
   // a webhook that already set `ready` or `error` is never overwritten. Owner check in SQL.
   // Repeat calls are harmless and return the current status.

@@ -26,6 +26,7 @@ const errorMessages: Record<string, string> = {
   turnstile_failed: 'The challenge failed. Please try again.',
   email_taken: 'This email already has an account.',
   handle_taken: 'This handle is taken.',
+  rate_limited: 'Too many attempts. Wait a minute and try again.',
 }
 const errorFields: Record<string, string> = { email_taken: 'email', handle_taken: 'handle' }
 

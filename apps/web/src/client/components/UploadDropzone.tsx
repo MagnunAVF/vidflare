@@ -30,6 +30,7 @@ type Phase =
 
 const errorMessages: Record<string, string> = {
   turnstile_failed: 'The challenge failed. Please try again.',
+  rate_limited: 'Too many uploads started. Wait a minute and try again.',
   unauthorized: 'Your session ended. Sign in again to upload.',
 }
 

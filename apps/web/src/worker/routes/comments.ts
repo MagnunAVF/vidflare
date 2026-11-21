@@ -15,6 +15,7 @@ import { channels, comments, videos } from '../db/schema'
 import { decodeCursor, encodeCursor } from '../lib/cursor'
 import { ApiError } from '../lib/errors'
 import { uuidv7 } from '../lib/id'
+import { byUser, rateLimit } from '../middleware/rate-limit'
 import { requireUser } from '../middleware/session'
 import { validate } from '../middleware/validate'
 import { verifyTurnstile } from '../services/turnstile'
@@ -84,6 +85,7 @@ export const videoCommentRoutes = new Hono<AppEnv>()
   .post(
     '/:id/comments',
     requireUser,
+    rateLimit('COMMENT_LIMITER', byUser),
     validate('param', videoIdParam),
     validate('json', createCommentInput),
     async (c) => {
