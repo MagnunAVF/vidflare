@@ -1,5 +1,5 @@
 // Last line of privacy before an event leaves for Sentry, shared by the Worker and the browser
-// SDK (beforeSend / beforeSendTransaction). The SDKs are already configured to collect no
+// SDK (beforeSend for errors, beforeSendSpan for spans). The SDKs are already configured to collect no
 // cookies, bodies or query strings; this removes what still slips through: credential headers
 // (session cookie, the moderation bearer token, webhook signatures) and query strings, which can
 // hold text a person typed (/search?q=...). Pure TypeScript, no Sentry import: the event types
@@ -54,6 +54,33 @@ function scrubData(data: Record<string, unknown> | undefined) {
     if (typeof value === 'string') data[key] = stripQuery(value)
   }
   for (const key of QUERY_KEYS) delete data[key]
+}
+
+// Header attributes a span can carry (OpenTelemetry names), e.g. http.request.header.cookie.
+const SENSITIVE_HEADER_ATTRIBUTE = new RegExp(
+  `^http\\.(request|response)\\.header\\.(${[...SENSITIVE_HEADERS].join('|').replaceAll('-', '[-_]')})$`,
+  'i',
+)
+
+export interface ScrubbableSpan {
+  name?: string
+  attributes?: Record<string, unknown>
+}
+
+// Scrubs one streamed span in place and returns it (the beforeSendSpan contract). Both SDKs
+// stream spans one by one (traceLifecycle 'stream', the v11 default), so spans never pass
+// through beforeSendTransaction: this is their last pass. Span names are "GET /api/search?q=..."
+// for HTTP spans.
+export function scrubSentrySpan<T extends ScrubbableSpan>(span: T): T {
+  if (span.name) span.name = stripQuery(span.name)
+  const attributes = span.attributes
+  if (attributes) {
+    scrubData(attributes)
+    for (const key of Object.keys(attributes)) {
+      if (SENSITIVE_HEADER_ATTRIBUTE.test(key)) attributes[key] = FILTERED
+    }
+  }
+  return span
 }
 
 // Scrubs the event in place and returns it (the beforeSend contract).

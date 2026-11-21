@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { FILTERED, type ScrubbableEvent, scrubSentryEvent, stripQuery } from './sentry-scrub'
+import {
+  FILTERED,
+  type ScrubbableEvent,
+  scrubSentryEvent,
+  scrubSentrySpan,
+  stripQuery,
+} from './sentry-scrub'
 
 describe('stripQuery', () => {
   it.each([
@@ -69,6 +75,33 @@ describe('scrubSentryEvent', () => {
     expect(event.spans).toEqual([
       { description: 'GET /api/search', data: { 'http.url': '/api/search' } },
     ])
+  })
+
+  it('scrubs a streamed span: its name, URL attributes and credential headers', () => {
+    const span = scrubSentrySpan({
+      name: 'GET /api/search?q=my+address',
+      attributes: {
+        'url.full': 'https://vidflare.app/api/search?q=my+address',
+        'http.query': 'q=my+address',
+        'url.query': '?q=my+address',
+        'http.request.header.authorization': 'Bearer moderation-token',
+        'http.request.header.Cookie': 'vf_session=secret',
+        'http.response.header.set_cookie': 'vf_session=new',
+        'http.request.header.user-agent': 'test',
+        'http.route': '/api/search',
+      },
+    })
+    expect(span).toEqual({
+      name: 'GET /api/search',
+      attributes: {
+        'url.full': 'https://vidflare.app/api/search',
+        'http.request.header.authorization': FILTERED,
+        'http.request.header.Cookie': FILTERED,
+        'http.response.header.set_cookie': FILTERED,
+        'http.request.header.user-agent': 'test',
+        'http.route': '/api/search',
+      },
+    })
   })
 
   it('leaves an event without those parts alone', () => {

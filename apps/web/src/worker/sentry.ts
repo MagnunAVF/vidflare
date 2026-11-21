@@ -1,5 +1,5 @@
 import type { CloudflareOptions } from '@sentry/cloudflare'
-import { scrubSentryEvent } from '@vidflare/shared'
+import { scrubSentryEvent, scrubSentrySpan } from '@vidflare/shared'
 
 // Shared by withSentry (fetch/queue) and the Durable Object wrapper. An empty SENTRY_DSN
 // (local dev, tests) disables the SDK.
@@ -24,7 +24,9 @@ export const sentryOptions = (env: Env): CloudflareOptions => ({
     urlQueryParams: false,
   },
   // A last pass on everything that leaves: credential headers filtered, query strings cut (see
-  // @vidflare/shared sentry-scrub). Same function as the browser SDK.
+  // @vidflare/shared sentry-scrub). Same functions as the browser SDK. Spans are streamed one
+  // by one (traceLifecycle 'stream', the default), so they go through beforeSendSpan, not
+  // beforeSendTransaction.
   beforeSend: (event) => scrubSentryEvent(event),
-  beforeSendTransaction: (event) => scrubSentryEvent(event),
+  beforeSendSpan: (span) => scrubSentrySpan(span),
 })

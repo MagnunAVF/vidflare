@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/react'
-import { scrubSentryEvent } from '@vidflare/shared'
+import { scrubSentryEvent, scrubSentrySpan } from '@vidflare/shared'
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
@@ -45,8 +45,10 @@ export function initSentry(router: unknown) {
       urlQueryParams: false,
     },
     // A last pass on everything that leaves: credential headers filtered, query strings cut
-    // (navigation breadcrumbs carry /search?q=...). Same function as the Worker.
+    // (navigation breadcrumbs and fetch spans carry /search?q=...). Same functions as the
+    // Worker. Spans are streamed (traceLifecycle 'stream', the default), so they go through
+    // beforeSendSpan, not beforeSendTransaction.
     beforeSend: (event) => scrubSentryEvent(event),
-    beforeSendTransaction: (event) => scrubSentryEvent(event),
+    beforeSendSpan: (span) => scrubSentrySpan(span),
   })
 }
