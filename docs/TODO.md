@@ -140,7 +140,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [ ] Dashboards: upload funnel, API p95 per route, queue processing time, views per hour
 
 **Testing and launch**
-- [ ] Vitest route/unit tests in the Workers runtime (status transitions, idempotency, ownership)
+- [x] Vitest route/unit tests in the Workers runtime (status transitions, idempotency, ownership)
 - [ ] Playwright E2E against stage: sign up → upload → watch → like → comment
 - [ ] Budget alerts on Stream and Workers usage
 - [ ] Production deploy behind the custom domain

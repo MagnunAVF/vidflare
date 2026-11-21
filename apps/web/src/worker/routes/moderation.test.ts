@@ -199,6 +199,12 @@ describe('moderation API', () => {
     expect(sent).toEqual([true, true, false])
     expect((await callApi(`/api/videos/${videoId}`)).status).toBe(200)
     expect(await ids('/api/videos')).toContain(videoId)
+
+    // A repeated restore is harmless too.
+    expect(await (await moderate(`/videos/${videoId}/restore`)).json()).toMatchObject({
+      takenDownAt: null,
+    })
+    expect((await callApi(`/api/videos/${videoId}`)).status).toBe(200)
   })
 
   it('keeps the takedown when Stream fails, and the request can be repeated', async () => {

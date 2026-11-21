@@ -155,6 +155,24 @@ describe('reconcileVideos', () => {
     expect(await statusOf(broken.id)).toBe('processing')
   })
 
+  it('is idempotent: a second run right after the first changes nothing', async () => {
+    const { channelId } = await signUp()
+    const ready = await addVideo(channelId, 'processing', 2 * HOUR)
+    const abandoned = await addVideo(channelId, 'uploading', ABANDONED_AFTER_MS + HOUR)
+    const { deleted } = fakeStream({
+      states: { [ready.uid]: 'ready', [abandoned.uid]: 'pendingupload' },
+    })
+
+    const first = await reconcileVideos(env, NOW)
+    expect(first).toMatchObject({ updated: 1, abandoned: 1 })
+    const second = await reconcileVideos(env, NOW)
+    // Both rows were settled by the first run, so nothing is stuck any more.
+    expect(second).toMatchObject({ checked: 0, updated: 0, abandoned: 0, failed: 0 })
+    expect(deleted).toEqual([abandoned.uid])
+    expect(await statusOf(ready.id)).toBe('ready')
+    expect(await statusOf(abandoned.id)).toBe('error')
+  })
+
   it('never lists the library outside stage', async () => {
     const { listCalls } = fakeStream({})
     await reconcileVideos(env, NOW)
