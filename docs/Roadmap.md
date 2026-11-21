@@ -171,6 +171,7 @@ All routes live under `/api`, are validated with Zod, and are chained on one Hon
 | GET | `/api/search?q=` | — | FTS5 title/description search (public, ready only) |
 | GET | `/api/studio/videos` | User | Creator's own videos, all statuses |
 | POST | `/api/studio/videos/:id/recheck` | Owner | Ask Stream for a stuck video's state and apply it |
+| GET | `/api/studio/storage` | User | Video storage used, the per-creator limit, and the longest next upload |
 | POST / DELETE | `/api/me/avatar` | User | Upload (PNG/JPEG/WebP, 2 MB) / remove avatar in R2 |
 | GET | `/api/media/avatars/:channelId/:file` | — | Serve an avatar from R2 (immutable key, long cache) |
 | POST | `/api/webhooks/stream` | Signature | Stream "video ready / error" events |

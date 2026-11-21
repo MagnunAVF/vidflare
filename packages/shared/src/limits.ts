@@ -30,4 +30,9 @@ export const TURNSTILE_TOKEN_MAX = 2048
 // Stream bills every environment's uploads to one account, so cap them everywhere.
 // Stream itself rejects a video longer than this (maxDurationSeconds on the upload).
 export const UPLOAD_MAX_DURATION_S = 15 * 60
+// Stream also bills every stored minute, so each creator gets a total budget of video. An
+// upload may be at most what's left of it (and never more than UPLOAD_MAX_DURATION_S); with
+// less than UPLOAD_MIN_REMAINING_S left, new uploads are refused.
+export const CREATOR_STORAGE_MAX_S = 2 * 60 * 60
+export const UPLOAD_MIN_REMAINING_S = 60
 export const UPLOAD_MAX_BYTES = 5 * 1024 ** 3 // 5 GiB

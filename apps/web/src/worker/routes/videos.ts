@@ -1,10 +1,4 @@
-import {
-  createUploadInput,
-  cursorQuery,
-  updateVideoInput,
-  UPLOAD_MAX_DURATION_S,
-  videoIdParam,
-} from '@vidflare/shared'
+import { createUploadInput, cursorQuery, updateVideoInput, videoIdParam } from '@vidflare/shared'
 import { and, eq, sql } from 'drizzle-orm'
 import { type Context, Hono } from 'hono'
 
@@ -13,6 +7,7 @@ import { channels, likes, videos } from '../db/schema'
 import { cached, cacheKeys, purgeCache, videoCacheKeys } from '../lib/cache'
 import { ApiError } from '../lib/errors'
 import { publicVideoPage } from '../lib/feed'
+import { channelStorage } from '../lib/storage'
 import { subscribedBy } from '../lib/subscriptions'
 import { uuidv7 } from '../lib/id'
 import { byUser, rateLimit } from '../middleware/rate-limit'
@@ -44,6 +39,13 @@ export const videoRoutes = new Hono<AppEnv>()
     async (c) => {
       const input = c.req.valid('json')
 
+      // The creator's storage budget, before Turnstile and Stream. The upload may be at most
+      // what's left (and never over UPLOAD_MAX_DURATION_S): Stream enforces it as
+      // maxDurationSeconds and fails a longer video. Checked, not reserved: two uploads started
+      // at once can each see the same room, which the upload rate limit keeps small.
+      const storage = await channelStorage(getDb(c.env.DB), c.var.user.channel.id)
+      if (storage.maxUploadS === 0) throw new ApiError(403, 'storage_quota_exceeded')
+
       const human = await verifyTurnstile(
         c.env.TURNSTILE_SECRET,
         input.turnstileToken,
@@ -59,7 +61,7 @@ export const videoRoutes = new Hono<AppEnv>()
       const stream = streamConfig(c.env)
       const upload = await createDirectUpload(stream, {
         sizeBytes: input.sizeBytes,
-        maxDurationSeconds: UPLOAD_MAX_DURATION_S,
+        maxDurationSeconds: storage.maxUploadS,
         meta: { env: c.env.ENVIRONMENT, videoId },
       })
 

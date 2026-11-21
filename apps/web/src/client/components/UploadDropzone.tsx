@@ -1,6 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { TurnstileInstance } from '@marsidev/react-turnstile'
-import { createUploadInput, UPLOAD_MAX_BYTES, VIDEO_TITLE_MAX } from '@vidflare/shared'
+import { Link } from '@tanstack/react-router'
+import {
+  createUploadInput,
+  UPLOAD_MAX_BYTES,
+  UPLOAD_MAX_DURATION_S,
+  VIDEO_TITLE_MAX,
+} from '@vidflare/shared'
 import { UploadIcon } from 'lucide-react'
 import { useEffect, useRef, useState, type DragEvent, type FormEventHandler } from 'react'
 import { useForm } from 'react-hook-form'
@@ -14,7 +20,9 @@ import { Progress } from '@/components/ui/progress'
 import { Textarea } from '@/components/ui/textarea'
 import { UploadStatus } from '@/components/UploadStatus'
 import { ApiRequestError } from '@/lib/api'
+import { formatDuration, formatMinutes } from '@/lib/format'
 import { uploadToStream } from '@/lib/tus'
+import { readVideoDuration } from '@/lib/video-file'
 import { useCreateUpload, useMarkUploaded } from '@/lib/videos'
 
 // The API's upload schema minus the size, which comes from the picked file.
@@ -31,6 +39,8 @@ type Phase =
 const errorMessages: Record<string, string> = {
   turnstile_failed: 'The challenge failed. Please try again.',
   rate_limited: 'Too many uploads started. Wait a minute and try again.',
+  storage_quota_exceeded:
+    'You’ve used all your video storage. Delete videos in the studio to make room.',
   unauthorized: 'Your session ended. Sign in again to upload.',
 }
 
@@ -42,9 +52,17 @@ const titleFromFile = (file: File) => file.name.replace(/\.[^.]+$/, '').slice(0,
 
 // Pick a video, fill in the metadata, and upload it straight to Stream with tus. Our API only
 // creates the upload (and the video row) and is told when the bytes are in.
-export function UploadDropzone(props: { onUploaded?: (videoId: string) => void }) {
+// maxUploadS: the longest video the creator may upload now (per-video cap or what's left of
+// their storage; 0 when full). Unknown while loading; the API enforces it either way.
+export function UploadDropzone(props: {
+  maxUploadS?: number
+  onUploaded?: (videoId: string) => void
+}) {
+  const { maxUploadS } = props
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string>()
+  // Reading a file's duration is async: only the latest pick may apply its result.
+  const pickSeq = useRef(0)
   const [phase, setPhase] = useState<Phase>({ name: 'editing' })
   const abort = useRef<AbortController | null>(null)
   const turnstile = useRef<TurnstileInstance>(undefined)
@@ -67,12 +85,27 @@ export function UploadDropzone(props: { onUploaded?: (videoId: string) => void }
     return () => window.removeEventListener('beforeunload', warn)
   }, [busy])
 
-  function pick(picked: File | undefined) {
+  async function pick(picked: File | undefined) {
     if (!picked) return
+    const seq = ++pickSeq.current
     if (!picked.type.startsWith('video/')) return setFileError('Choose a video file.')
     if (picked.size === 0) return setFileError('This file is empty.')
     if (picked.size > UPLOAD_MAX_BYTES)
       return setFileError(`Videos can be up to ${formatBytes(UPLOAD_MAX_BYTES)}.`)
+    // Too long is caught here, before any bytes go up; Stream would only fail it afterwards.
+    if (maxUploadS) {
+      const duration = await readVideoDuration(picked)
+      if (seq !== pickSeq.current) return
+      // One second of slack: containers round durations differently.
+      if (duration !== null && duration > maxUploadS + 1) {
+        setFile(null)
+        return setFileError(
+          maxUploadS < UPLOAD_MAX_DURATION_S
+            ? `This video is ${formatDuration(duration)} long, and you have ${formatMinutes(maxUploadS)} of storage left.`
+            : `This video is ${formatDuration(duration)} long. Videos can be up to ${formatMinutes(maxUploadS)}.`,
+        )
+      }
+    }
     setFileError(undefined)
     setFile(picked)
     if (!form.getValues('title')) form.setValue('title', titleFromFile(picked))
@@ -80,7 +113,7 @@ export function UploadDropzone(props: { onUploaded?: (videoId: string) => void }
 
   const onDrop = (event: DragEvent<HTMLLabelElement>) => {
     event.preventDefault()
-    pick(event.dataTransfer.files[0])
+    void pick(event.dataTransfer.files[0])
   }
 
   const onSubmit: FormEventHandler<HTMLFormElement> = (event) =>
@@ -157,6 +190,19 @@ export function UploadDropzone(props: { onUploaded?: (videoId: string) => void }
     )
   }
 
+  if (maxUploadS === 0) {
+    return (
+      <div className="grid justify-items-start gap-3" role="status">
+        <p className="text-sm">
+          You’ve used all your video storage. Delete videos you no longer need to upload more.
+        </p>
+        <Button asChild variant="outline">
+          <Link to="/studio">Go to the studio</Link>
+        </Button>
+      </div>
+    )
+  }
+
   const errors = form.formState.errors
   return (
     <form onSubmit={onSubmit} noValidate className="grid gap-4">
@@ -179,7 +225,7 @@ export function UploadDropzone(props: { onUploaded?: (videoId: string) => void }
           type="file"
           accept="video/*"
           className="sr-only"
-          onChange={(event) => pick(event.target.files?.[0])}
+          onChange={(event) => void pick(event.target.files?.[0])}
         />
       </label>
       {fileError && (

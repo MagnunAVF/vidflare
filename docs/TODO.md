@@ -126,7 +126,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] KV cache for home feed, channel pages and video detail (60 s); purge on writes and in the queue consumer
 - [x] Turnstile on sign-up, comment and upload (verified end to end)
 - [x] Rate limiting rules (login, comments, uploads, views)
-- [ ] Upload length cap (e.g. 15 min) and per-creator storage cap
+- [x] Upload length cap (e.g. 15 min) and per-creator storage cap
 
 **Reliability**
 - [ ] Nightly `scheduled` reconcile job wrapped in `Sentry.withMonitor`

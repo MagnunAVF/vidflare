@@ -6,6 +6,7 @@ import { getDb } from '../db/client'
 import { videos } from '../db/schema'
 import { decodeCursor, encodeCursor } from '../lib/cursor'
 import { ApiError } from '../lib/errors'
+import { channelStorage } from '../lib/storage'
 import type { StreamEvent } from '../lib/stream-events'
 import { requireUser } from '../middleware/session'
 import { validate } from '../middleware/validate'
@@ -17,6 +18,10 @@ import type { AppEnv } from '../types'
 // The creator studio: the signed-in user's own videos. Owner-only by construction: every query
 // is scoped to c.var.user.channel.id.
 export const studio = new Hono<AppEnv>()
+  // The creator's video storage budget: used, limit and the longest next upload (0: full).
+  .get('/storage', requireUser, async (c) =>
+    c.json(await channelStorage(getDb(c.env.DB), c.var.user.channel.id), 200),
+  )
   // Every status and visibility, newest upload first (videos_studio_idx), keyset-paginated
   // on (created_at, id).
   .get('/videos', requireUser, validate('query', cursorQuery), async (c) => {
