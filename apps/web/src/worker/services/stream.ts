@@ -140,6 +140,34 @@ export async function getVideo(cfg: StreamConfig, uid: string): Promise<StreamVi
   }
 }
 
+// One entry of the library listing.
+export interface StreamListedVideo {
+  uid: string
+  // ISO timestamp; also the listing's cursor.
+  created: string
+  meta: Record<string, unknown>
+}
+
+// One page of the account's library, newest first. `end` (exclusive) continues after the last
+// page: pass the `created` of its oldest entry. The library is shared by every environment, so
+// callers filter on meta.env.
+export async function listVideos(
+  cfg: StreamConfig,
+  page: { limit: number; end?: string },
+): Promise<StreamListedVideo[]> {
+  const url = new URL(`${API_BASE}/${cfg.accountId}/stream`)
+  url.searchParams.set('limit', String(page.limit))
+  if (page.end) url.searchParams.set('end', page.end)
+  const res = await fetch(url, { headers: authHeaders(cfg) })
+  if (!res.ok) throw new StreamApiError('list videos', res.status, await errorCodes(res))
+  const body = await res.json<{ result?: { uid: string; created: string; meta?: unknown }[] }>()
+  return (body.result ?? []).map((v) => ({
+    uid: v.uid,
+    created: v.created,
+    meta: v.meta && typeof v.meta === 'object' ? (v.meta as Record<string, unknown>) : {},
+  }))
+}
+
 // Deletes a video and its copies. Deleting one that's already gone counts as success.
 export async function deleteVideo(cfg: StreamConfig, uid: string): Promise<void> {
   const res = await fetch(videoUrl(cfg, uid), { method: 'DELETE', headers: authHeaders(cfg) })

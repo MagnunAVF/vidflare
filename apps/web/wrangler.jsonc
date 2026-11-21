@@ -29,6 +29,10 @@
   // STREAM_CUSTOMER_CODE: the account's Stream playback subdomain (customer-<code>.cloudflarestream.com).
   // Public (it is in every embed URL) and the same in every env, since they share one account.
   "vars": { "ENVIRONMENT": "local", "STREAM_CUSTOMER_CODE": "0fq81iqdnjco39qo" },
+  // Nightly reconcile (lib/reconcile.ts, RECONCILE_CRON). Set in every env, so no env can lose
+  // it by accident. Locally it never fires on its own: trigger it with
+  // `curl "http://localhost:5173/cdn-cgi/handler/scheduled?cron=0+3+*+*+*"`.
+  "triggers": { "crons": ["0 3 * * *"] },
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "d1_databases": [
     {
@@ -72,6 +76,7 @@
     // Worker: vidflare-stage
     "stage": {
       "vars": { "ENVIRONMENT": "stage", "STREAM_CUSTOMER_CODE": "0fq81iqdnjco39qo" },
+      "triggers": { "crons": ["0 3 * * *"] },
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "d1_databases": [
         {
@@ -119,6 +124,7 @@
     // Worker: vidflare-production
     "production": {
       "vars": { "ENVIRONMENT": "production", "STREAM_CUSTOMER_CODE": "0fq81iqdnjco39qo" },
+      "triggers": { "crons": ["0 3 * * *"] },
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "d1_databases": [
         {

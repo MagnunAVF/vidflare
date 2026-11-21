@@ -129,7 +129,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] Upload length cap (e.g. 15 min) and per-creator storage cap
 
 **Reliability**
-- [ ] Nightly `scheduled` reconcile job wrapped in `Sentry.withMonitor`
+- [x] Nightly `scheduled` reconcile job wrapped in `Sentry.withMonitor`
 - [ ] Report button + manual takedown flow
 
 **Observability**

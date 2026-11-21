@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 
 import { VideoStats as VideoStatsBase } from './do/VideoStats'
 import { notFound, onError } from './lib/errors'
+import { RECONCILE_CRON, RECONCILE_MONITOR_SLUG, reconcileVideos } from './lib/reconcile'
 import { requestContext } from './middleware/request-context'
 import { sessionLoader } from './middleware/session'
 import { auth } from './routes/auth'
@@ -60,4 +61,16 @@ export default Sentry.withSentry(sentryOptions, {
 
   // Consumer for this environment's stream-events queue (Stream ready/error events).
   queue: handleStreamEvents,
+
+  // Nightly reconcile (cron in wrangler.jsonc). The Sentry cron monitor gets an in-progress
+  // check-in, then ok or error (reconcileVideos throws when a step failed); a night with no
+  // check-in at all alerts as missed. The monitor is created from this config on first run.
+  scheduled: async (_controller, env) => {
+    await Sentry.withMonitor(RECONCILE_MONITOR_SLUG, () => reconcileVideos(env), {
+      schedule: { type: 'crontab', value: RECONCILE_CRON },
+      timezone: 'Etc/UTC',
+      checkinMargin: 30, // minutes late before it counts as missed
+      maxRuntime: 15, // minutes
+    })
+  },
 } satisfies ExportedHandler<Env>)

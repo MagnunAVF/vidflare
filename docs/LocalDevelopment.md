@@ -24,6 +24,7 @@ pnpm dev                                           # SPA + Worker on http://loca
 | `MEDIA` | R2 `vidflare-media` | ✅ |
 | `EVENTS` | Queue `stream-events` (producer + consumer) | ✅ |
 | `VIDEO_STATS` | Durable Object `VideoStats` (SQLite) | ✅ |
+| `triggers.crons` | Nightly reconcile (`lib/reconcile.ts`) | ✅ never fires on its own; run it with `curl "http://localhost:5173/cdn-cgi/handler/scheduled?cron=0+3+*+*+*"`. It asks the Stream API (the shared library, like every local Stream call) about this D1's videos stuck for over an hour, so the seeded demo rows with fake uids turn `error`. |
 
 Tests (`pnpm test`) use the same bindings, isolated per test, with migrations applied automatically.
 
