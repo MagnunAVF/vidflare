@@ -1,5 +1,6 @@
 import { createMiddleware } from 'hono/factory'
 
+import { telemetry } from '../lib/telemetry'
 import type { AppEnv } from '../types'
 
 // Request id (also returned as X-Request-Id) and one structured log line per request.
@@ -11,6 +12,8 @@ export const requestContext = createMiddleware<AppEnv>(async (c, next) => {
 
   await next()
 
+  // The matched route pattern is known only after routing.
+  telemetry.nameRequest(c.req.method, c.req.routePath)
   c.header('X-Request-Id', requestId)
   console.log(
     JSON.stringify({

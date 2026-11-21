@@ -24,6 +24,17 @@ export const telemetry = {
     callback: (span: Sentry.Span) => T,
   ): T => Sentry.startSpan(options, callback),
 
+  // Names the request's root span by route pattern ("GET /api/videos/:id") instead of its URL,
+  // so traces, the p95-per-route dashboard and the video-detail latency alert group by route
+  // rather than by every video id. No-op when there's no active span (Sentry off).
+  nameRequest: (method: string, route: string) => {
+    const active = Sentry.getActiveSpan()
+    if (!active) return
+    const root = Sentry.getRootSpan(active)
+    Sentry.updateSpanName(root, `${method} ${route}`)
+    root.setAttribute('http.route', route)
+  },
+
   count: (name: CountMetric, attributes?: MetricAttributes) =>
     Sentry.metrics.count(name, 1, attributes ? { attributes } : undefined),
 

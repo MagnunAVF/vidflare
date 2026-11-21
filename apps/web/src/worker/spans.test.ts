@@ -7,7 +7,7 @@ import { videos } from './db/schema'
 import { uuidv7 } from './lib/id'
 import { telemetry } from './lib/telemetry'
 import { handleStreamEvents } from './queue/stream-events'
-import { mockFetch, postJson, signUp, STREAM_API_URL, TURNSTILE_URL } from './test/helpers'
+import { callApi, mockFetch, postJson, signUp, STREAM_API_URL, TURNSTILE_URL } from './test/helpers'
 
 type SpanOptions = { name: string; op?: string; attributes?: Record<string, unknown> }
 
@@ -106,6 +106,17 @@ describe('custom spans', () => {
     const queueSpans = spanNamed('queue.stream_event')
     expect(queueSpans).toHaveLength(2)
     expect(queueSpans[0]?.attributes).toMatchObject({ 'video.id': id, 'stream.state': 'ready' })
+  })
+
+  it('names each request by its route pattern, not its URL', async () => {
+    const id = await insertVideo('ready')
+    const nameRequest = vi.spyOn(telemetry, 'nameRequest')
+    await callApi(`/api/videos/${id}`)
+    await callApi(`/api/search?q=private`)
+    expect(nameRequest.mock.calls).toEqual([
+      ['GET', '/api/videos/:id'],
+      ['GET', '/api/search'],
+    ])
   })
 
   it('stats.flush wraps the Durable Object’s write to D1', async () => {
