@@ -69,6 +69,8 @@
       "TURNSTILE_SECRET",
       "AUTH_SECRET",
       "SENTRY_DSN",
+      // Bearer token for the manual takedown API (docs/Moderation.md).
+      "MODERATION_TOKEN",
     ],
   },
 
@@ -117,6 +119,7 @@
           "TURNSTILE_SECRET",
           "AUTH_SECRET",
           "SENTRY_DSN",
+          "MODERATION_TOKEN",
         ],
       },
     },
@@ -170,6 +173,7 @@
           "TURNSTILE_SECRET",
           "AUTH_SECRET",
           "SENTRY_DSN",
+          "MODERATION_TOKEN",
         ],
       },
     },

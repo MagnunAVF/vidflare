@@ -4,6 +4,7 @@ import { Hono } from 'hono'
 
 import { getDb } from '../db/client'
 import { videos } from '../db/schema'
+import { isAvailable } from '../lib/availability'
 import { ApiError } from '../lib/errors'
 import { viewerKey } from '../lib/viewer'
 import { byIp, rateLimit } from '../middleware/rate-limit'
@@ -22,11 +23,15 @@ export const viewRoutes = new Hono<AppEnv>().post(
     const { id } = c.req.valid('param')
     // Only a playable video counts views; anything else never reaches (or creates) an object.
     const video = await getDb(c.env.DB)
-      .select({ status: videos.status, viewCount: videos.viewCount })
+      .select({
+        status: videos.status,
+        takenDownAt: videos.takenDownAt,
+        viewCount: videos.viewCount,
+      })
       .from(videos)
       .where(eq(videos.id, id))
       .get()
-    if (!video || video.status !== 'ready') throw new ApiError(404, 'not_found')
+    if (!video || !isAvailable(video)) throw new ApiError(404, 'not_found')
 
     const stats = c.env.VIDEO_STATS.get(c.env.VIDEO_STATS.idFromName(id))
     const result = await stats.recordView({

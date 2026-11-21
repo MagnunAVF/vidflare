@@ -111,17 +111,18 @@ The top level above is the local environment. `env.stage` and `env.production` r
 
 ## Data model (D1)
 
-Seven tables cover the MVP; video files live in Stream and D1 only stores the Stream UID and metadata. Counts on `videos` are denormalized and updated by the Durable Object flush, so feeds never run `COUNT(*)`.
+Eight tables cover the MVP; video files live in Stream and D1 only stores the Stream UID and metadata. Counts on `videos` are denormalized and updated by the Durable Object flush, so feeds never run `COUNT(*)`.
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
 | `users` | id, email (unique), password_hash, created_at | Or Better Auth's `user` table |
 | `sessions` | id, user_id, expires_at | HttpOnly cookie holds the session id |
 | `channels` | id, user_id (unique), handle (unique), name, avatar_key, subscriber_count | One channel per user in MVP |
-| `videos` | id, channel_id, stream_uid (unique), title, description, status, visibility, duration_s, thumbnail_url, view_count, like_count, comment_count, created_at, published_at | status: `uploading` → `processing` → `ready` → `error` |
+| `videos` | id, channel_id, stream_uid (unique), title, description, status, visibility, duration_s, thumbnail_url, view_count, like_count, comment_count, created_at, published_at, taken_down_at | status: `uploading` → `processing` → `ready` → `error` |
 | `likes` | user_id, video_id, created_at | PK (user_id, video_id) prevents double likes |
 | `comments` | id, video_id, user_id, body, created_at, deleted_at | Flat comments; replies post-MVP |
 | `subscriptions` | subscriber_id, channel_id, created_at | PK (subscriber_id, channel_id) |
+| `reports` | id, video_id, reporter_id, reason, details, status, created_at, resolved_at | Unique (video_id, reporter_id); status `open` → `actioned` / `dismissed`; see [Moderation.md](Moderation.md) |
 
 **Indexes**
 
@@ -138,7 +139,7 @@ Seven tables cover the MVP; video files live in Stream and D1 only stores the St
 - Timestamps are integer epoch milliseconds (D1 has no native date type).
 - Multi-statement writes (e.g. insert comment + bump `comment_count`) go in one `db.batch()` so they commit atomically.
 - Use cursor pagination on `(published_at, id)`, never `OFFSET`.
-- Public listings (home feed, channel page, subscriptions feed, search) always filter `visibility = 'public' AND status = 'ready'`. Unlisted videos are reachable only by direct link and in the studio.
+- Public listings (home feed, channel page, subscriptions feed, search) always filter `visibility = 'public' AND status = 'ready'` and skip videos taken down by moderation (`taken_down_at`). Unlisted videos are reachable only by direct link and in the studio.
 - Watch the 10 GB per database cap; at MVP scale one database is fine, and comments are the first table to move to its own database if needed.
 
 ## API design (Hono)
@@ -160,6 +161,7 @@ All routes live under `/api`, are validated with Zod, and are chained on one Hon
 | PATCH | `/api/videos/:id` | Owner | Edit title, description, visibility |
 | DELETE | `/api/videos/:id` | Owner | Delete in Stream + D1 |
 | POST | `/api/videos/:id/view` | — | Record a view (to Durable Object) |
+| POST | `/api/videos/:id/report` | User | Report a video for review (one report per user and video) |
 | PUT / DELETE | `/api/videos/:id/like` | User | Like / unlike |
 | GET | `/api/videos/:id/comments?cursor=` | — | List comments |
 | POST | `/api/videos/:id/comments` | User + Turnstile | Add comment |
@@ -175,6 +177,9 @@ All routes live under `/api`, are validated with Zod, and are chained on one Hon
 | POST / DELETE | `/api/me/avatar` | User | Upload (PNG/JPEG/WebP, 2 MB) / remove avatar in R2 |
 | GET | `/api/media/avatars/:channelId/:file` | — | Serve an avatar from R2 (immutable key, long cache) |
 | POST | `/api/webhooks/stream` | Signature | Stream "video ready / error" events |
+| GET | `/api/moderation/reports?status=&cursor=` | Moderation token | Report queue (see [Moderation.md](Moderation.md)) |
+| POST | `/api/moderation/videos/:id/takedown`, `/restore` | Moderation token | Take a video down or restore it (D1, KV purge, Stream `requireSignedURLs`) |
+| POST | `/api/moderation/reports/:id/dismiss` | Moderation token | Close a report without action |
 
 **Middleware order:** Sentry instrumentation (outermost, via withSentry) → request id + logger → error handler (consistent JSON errors) → session loader (sets `c.var.user`) → `requireUser` on protected routes → Zod validators.
 

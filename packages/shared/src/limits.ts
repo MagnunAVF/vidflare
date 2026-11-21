@@ -21,6 +21,9 @@ export const VIDEO_DESCRIPTION_MAX = 5000
 
 export const COMMENT_MAX = 2000
 
+// Optional free text a viewer adds to a report (what's wrong, where, who owns it).
+export const REPORT_DETAILS_MAX = 1000
+
 // Long enough for any real query; the FTS query built from it stays small.
 export const SEARCH_QUERY_MAX = 100
 

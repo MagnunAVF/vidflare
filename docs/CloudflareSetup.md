@@ -74,6 +74,7 @@ Set each one per environment. Piping a value keeps it out of your shell history;
 | `TURNSTILE_SECRET` | Dashboard → **Turnstile** → add a widget per environment with that environment's hostname(s) → secret key. The widget's public **site key** isn't a secret: pass it at build time as `VITE_TURNSTILE_SITE_KEY` (for example `VITE_TURNSTILE_SITE_KEY=<key> pnpm deploy:stage`, or a CI variable). |
 | `AUTH_SECRET` | Generate: `openssl rand -hex 32 \| pnpm exec wrangler secret put AUTH_SECRET --env stage` (new value per environment) |
 | `SENTRY_DSN` | The Sentry project's DSN; see [SentrySetup.md](SentrySetup.md) |
+| `MODERATION_TOKEN` | Generate: `openssl rand -hex 32 \| pnpm exec wrangler secret put MODERATION_TOKEN --env stage` (new value per environment). Bearer token for the takedown API; see [Moderation.md](Moderation.md). Required: `wrangler deploy` refuses to deploy while it's unset. |
 
 ```sh
 pnpm exec wrangler secret put STREAM_API_TOKEN --env stage

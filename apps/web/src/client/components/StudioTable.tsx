@@ -40,6 +40,8 @@ export interface StudioVideo {
   likeCount: number
   commentCount: number
   createdAt: number
+  // Set when a moderator took the video down after a report: hidden everywhere.
+  takenDownAt: number | null
 }
 
 const statusBadges: Record<
@@ -104,7 +106,7 @@ export function StudioTable(props: {
                     </span>
                   )}
                 </div>
-                {video.status === 'ready' ? (
+                {video.status === 'ready' && video.takenDownAt === null ? (
                   <Link
                     to="/watch/$id"
                     params={{ id: video.id }}
@@ -118,7 +120,16 @@ export function StudioTable(props: {
               </div>
             </TableCell>
             <TableCell>
-              <StatusBadge status={video.status} />
+              {video.takenDownAt !== null ? (
+                <Badge
+                  variant="destructive"
+                  title="Removed after a report. It no longer plays or shows anywhere."
+                >
+                  Taken down
+                </Badge>
+              ) : (
+                <StatusBadge status={video.status} />
+              )}
             </TableCell>
             <TableCell className="capitalize">{video.visibility}</TableCell>
             <TableCell>{dateFormat.format(video.createdAt)}</TableCell>

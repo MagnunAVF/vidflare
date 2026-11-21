@@ -3,11 +3,12 @@ import { and, desc, eq, isNotNull, type SQL, sql } from 'drizzle-orm'
 
 import type { Db } from '../db/client'
 import { channels, videos } from '../db/schema'
+import { availableVideo } from './availability'
 import { decodeCursor, encodeCursor } from './cursor'
 import { ApiError } from './errors'
 
-// One page of a public video listing (home feed, channel page, subscriptions feed): only
-// `visibility = 'public' AND status = 'ready'`, newest first, keyset-paginated on
+// One page of a public video listing (home feed, channel page, subscriptions feed, search): only
+// `visibility = 'public' AND status = 'ready'` and not taken down, newest first, keyset-paginated on
 // (published_at, id); never OFFSET. `scope` narrows the listing (e.g. one channel).
 export async function publicVideoPage(db: Db, cursor: string | undefined, scope?: SQL) {
   const after = cursor === undefined ? null : decodeCursor(cursor)
@@ -27,7 +28,7 @@ export async function publicVideoPage(db: Db, cursor: string | undefined, scope?
     .innerJoin(channels, eq(channels.id, videos.channelId))
     .where(
       and(
-        eq(videos.status, 'ready'),
+        availableVideo(),
         eq(videos.visibility, 'public'),
         isNotNull(videos.publishedAt),
         scope,

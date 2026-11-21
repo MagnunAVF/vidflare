@@ -5,7 +5,7 @@ Hono app on Cloudflare Workers. It also exports the queue consumer, the `schedul
 ## Structure
 
 - `index.ts`: builds the app, chains routes, exports `AppType`, the default handler (`fetch`, `queue`, `scheduled`) wrapped in `Sentry.withSentry`, and `VideoStats` wrapped in `Sentry.instrumentDurableObjectWithSentry`
-- `routes/`: `auth`, `videos`, `channels`, `comments`, `feed`, `search`, `studio`, `me`, `webhooks`, `debug` (`GET /debug/error` throws on purpose to verify Sentry; signed-in only, 404 in production)
+- `routes/`: `auth`, `videos`, `channels`, `comments`, `feed`, `search`, `studio`, `me`, `webhooks`, `reports` (viewer reports), `moderation` (takedown API behind `MODERATION_TOKEN`, see docs/Moderation.md), `debug` (`GET /debug/error` throws on purpose to verify Sentry; signed-in only, 404 in production)
 - `middleware/`: request id + logger, error handler, session loader, `requireUser`, rate limit
 - `db/schema.ts`: Drizzle schema (the source of truth for migrations)
 - `services/stream.ts`: Stream API client (direct upload, delete, status lookup)
@@ -27,7 +27,8 @@ Hono app on Cloudflare Workers. It also exports the queue consumer, the `schedul
 - Keep invariants in SQL: `INSERT ... ON CONFLICT DO NOTHING` for likes/subscriptions, conditional `WHERE` for status transitions (e.g. `uploading → processing` only `WHERE status = 'uploading'`).
 - IDs are UUIDv7/ULID generated in the Worker. Timestamps are integer epoch ms.
 - Pagination is a cursor on `(published_at, id)`. Never `OFFSET`.
-- Public listings filter `visibility = 'public' AND status = 'ready'`. Search joins `videos_fts` back to `videos` and applies the same filter.
+- Public listings filter `visibility = 'public' AND status = 'ready'` and skip taken-down videos (`taken_down_at`). Search joins `videos_fts` back to `videos` and applies the same filter.
+- Anything a viewer does with one video (watch, view, like, comment, report) requires it to be available: `availableVideo()` / `isAvailable()` in `lib/availability.ts` (ready and not taken down). A taken-down video is a 404 for everyone, its owner included.
 - Read the denormalized counters (`view_count`, `like_count`, `comment_count`, `subscriber_count`). Never `COUNT(*)` in feeds. The exception: subscribe/unsubscribe recompute `subscriber_count` from `subscriptions` inside the same batch.
 
 ## Video lifecycle

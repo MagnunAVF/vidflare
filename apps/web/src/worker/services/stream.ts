@@ -168,6 +168,24 @@ export async function listVideos(
   }))
 }
 
+// Turns signed-URL-only playback on (takedown) or off (restore). While on, Stream refuses the
+// public player, manifests and thumbnails, also for anyone who copied the player URL; the
+// video itself is kept, so a restore brings it back. A video Stream no longer has needs
+// nothing blocked, so a 404 counts as done.
+export async function setRequireSignedUrls(
+  cfg: StreamConfig,
+  uid: string,
+  required: boolean,
+): Promise<void> {
+  const res = await fetch(videoUrl(cfg, uid), {
+    method: 'POST',
+    headers: { ...authHeaders(cfg), 'content-type': 'application/json' },
+    body: JSON.stringify({ uid, requireSignedURLs: required }),
+  })
+  if (res.ok || res.status === 404) return
+  throw new StreamApiError('set requireSignedURLs', res.status, await errorCodes(res))
+}
+
 // Deletes a video and its copies. Deleting one that's already gone counts as success.
 export async function deleteVideo(cfg: StreamConfig, uid: string): Promise<void> {
   const res = await fetch(videoUrl(cfg, uid), { method: 'DELETE', headers: authHeaders(cfg) })

@@ -15,6 +15,8 @@ import { handleStreamEvents } from './queue/stream-events'
 import { likeRoutes } from './routes/likes'
 import { me } from './routes/me'
 import { mediaRoutes } from './routes/media'
+import { moderationRoutes } from './routes/moderation'
+import { reportRoutes } from './routes/reports'
 import { searchRoutes } from './routes/search'
 import { studio } from './routes/studio'
 import { videoRoutes } from './routes/videos'
@@ -44,12 +46,14 @@ const app = new Hono<AppEnv>()
   .route('/videos', likeRoutes)
   .route('/videos', videoCommentRoutes)
   .route('/videos', viewRoutes)
+  .route('/videos', reportRoutes)
   .route('/comments', commentRoutes)
   .route('/channels', channelRoutes)
   .route('/feed', feedRoutes)
   .route('/search', searchRoutes)
   .route('/media', mediaRoutes)
   .route('/studio', studio)
+  .route('/moderation', moderationRoutes)
   .route('/webhooks', webhooks)
   .route('/debug', debug)
 

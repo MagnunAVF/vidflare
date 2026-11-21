@@ -130,7 +130,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 
 **Reliability**
 - [x] Nightly `scheduled` reconcile job wrapped in `Sentry.withMonitor`
-- [ ] Report button + manual takedown flow
+- [x] Report button + manual takedown flow
 
 **Observability**
 - [ ] Custom spans: `stream.create_upload`, `queue.stream_event`, `stats.flush`

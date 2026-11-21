@@ -192,6 +192,7 @@ async function videoDetail(c: Context<AppEnv>, id: string) {
       likeCount: videos.likeCount,
       commentCount: videos.commentCount,
       publishedAt: videos.publishedAt,
+      takenDownAt: videos.takenDownAt,
       // The viewer's own like, for the LikeButton's initial state (likes PK lookup).
       likedByMe: userId
         ? sql<number>`exists(select 1 from ${likes} where ${likes.userId} = ${userId} and ${likes.videoId} = ${videos.id})`
@@ -211,9 +212,12 @@ async function videoDetail(c: Context<AppEnv>, id: string) {
     .get()
 
   const isOwner = row !== undefined && c.var.user?.channel.id === row.channel.id
-  if (!row || (row.status !== 'ready' && !isOwner)) throw new ApiError(404, 'not_found')
+  // Taken down by a moderator: gone for everyone, the owner included (the studio shows why).
+  if (!row || row.takenDownAt !== null || (row.status !== 'ready' && !isOwner)) {
+    throw new ApiError(404, 'not_found')
+  }
 
-  const { streamUid, likedByMe, ...video } = row
+  const { streamUid, likedByMe, takenDownAt: _takenDownAt, ...video } = row
   return {
     ...video,
     channel: { ...video.channel, subscribedByMe: Boolean(video.channel.subscribedByMe) },

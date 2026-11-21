@@ -4,6 +4,7 @@ import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { CommentForm } from '@/components/CommentForm'
 import { CommentList } from '@/components/CommentList'
 import { LikeButton } from '@/components/LikeButton'
+import { ReportButton } from '@/components/ReportButton'
 import { StreamPlayer } from '@/components/StreamPlayer'
 import { SubscribeButton } from '@/components/SubscribeButton'
 import { Button } from '@/components/ui/button'
@@ -85,13 +86,14 @@ function WatchPage() {
           <span className="rounded bg-muted px-1.5 py-0.5 text-xs">Unlisted</span>
         )}
         {video.status === 'ready' && (
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
             <LikeButton
               videoId={video.id}
               liked={video.likedByMe}
               count={video.likeCount}
               signedIn={Boolean(me)}
             />
+            {!video.isOwner && <ReportButton videoId={video.id} signedIn={Boolean(me)} />}
           </div>
         )}
       </div>

@@ -33,6 +33,8 @@ export const studio = new Hono<AppEnv>()
         description: videos.description,
         status: videos.status,
         visibility: videos.visibility,
+        // Set when a moderator took the video down (hidden everywhere, playback blocked).
+        takenDownAt: videos.takenDownAt,
         durationS: videos.durationS,
         thumbnailUrl: videos.thumbnailUrl,
         viewCount: videos.viewCount,

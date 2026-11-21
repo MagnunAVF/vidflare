@@ -1,6 +1,19 @@
-import { VIDEO_STATUSES, VIDEO_VISIBILITIES } from '@vidflare/shared'
+import {
+  REPORT_REASONS,
+  REPORT_STATUSES,
+  VIDEO_STATUSES,
+  VIDEO_VISIBILITIES,
+} from '@vidflare/shared'
 import { desc, sql } from 'drizzle-orm'
-import { check, index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import {
+  check,
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core'
 
 // Source of truth for D1 migrations (drizzle-kit generate → migrations/).
 // IDs are UUIDv7/ULID strings generated in the Worker; timestamps are integer epoch ms.
@@ -57,6 +70,9 @@ export const videos = sqliteTable(
     commentCount: integer('comment_count').notNull().default(0),
     createdAt: integer('created_at').notNull(),
     publishedAt: integer('published_at'),
+    // Set by a moderator's takedown (docs/Moderation.md): the video is hidden everywhere and
+    // Stream stops public playback. Null again after a restore.
+    takenDownAt: integer('taken_down_at'),
   },
   (t) => [
     check('videos_status_check', sql`${t.status} in (${inList(VIDEO_STATUSES)})`),
@@ -82,6 +98,33 @@ export const likes = sqliteTable(
   },
   // The composite key is what makes repeat likes a no-op (ON CONFLICT DO NOTHING).
   (t) => [primaryKey({ columns: [t.userId, t.videoId] })],
+)
+
+// Viewer reports of a video, reviewed by hand (docs/Moderation.md). One per user and video:
+// reporting again is a no-op. Deleting the video or the user deletes their reports.
+export const reports = sqliteTable(
+  'reports',
+  {
+    id: text('id').primaryKey(),
+    videoId: text('video_id')
+      .notNull()
+      .references(() => videos.id, { onDelete: 'cascade' }),
+    reporterId: text('reporter_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    reason: text('reason', { enum: REPORT_REASONS }).notNull(),
+    details: text('details').notNull().default(''),
+    status: text('status', { enum: REPORT_STATUSES }).notNull().default('open'),
+    createdAt: integer('created_at').notNull(),
+    resolvedAt: integer('resolved_at'),
+  },
+  (t) => [
+    check('reports_reason_check', sql`${t.reason} in (${inList(REPORT_REASONS)})`),
+    check('reports_status_check', sql`${t.status} in (${inList(REPORT_STATUSES)})`),
+    uniqueIndex('reports_video_reporter_idx').on(t.videoId, t.reporterId),
+    // The moderation queue: reports by status, newest first, keyset-paginated.
+    index('reports_status_idx').on(t.status, desc(t.createdAt), desc(t.id)),
+  ],
 )
 
 // Flat comments (replies are post-MVP). Deletes are soft: deleted_at is set.

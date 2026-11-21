@@ -20,6 +20,7 @@ export default defineConfig(async () => {
             STREAM_API_TOKEN: 'test-token',
             STREAM_WEBHOOK_SECRET: 'test-webhook-secret',
             SENTRY_DSN: '',
+            MODERATION_TOKEN: 'test-moderation-token',
           },
         },
       }),
