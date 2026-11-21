@@ -39,7 +39,8 @@ Hono app on Cloudflare Workers. It also exports the queue consumer, the `schedul
 2. `POST /videos/:id/uploaded`: set `processing` only from `uploading`.
 3. `POST /webhooks/stream`: verify the `Webhook-Signature` HMAC (`STREAM_WEBHOOK_SECRET`), then route by `meta.env` and return 200 fast: an event tagged with the Worker's own `ENVIRONMENT` goes to `EVENTS`, production also forwards `stage` to `STAGE_EVENTS` (a producer bound only in production), and anything else (e.g. `local` or untagged on production) gets a `warn` log and is dropped (`lib/stream-events.ts` → `queueFor`). The queue message is `StreamEvent`; stage may consume messages from a different production version, so only add optional fields to it. No D1 work and no other logic here: the account's single Stream webhook lands on production, so this handler serves every environment. An invalid signature gets a `warn` log and the `webhook.signature_invalid` metric.
 4. Queue consumer (`queue/stream-events.ts`): set `ready`/`error`, `duration_s`, `thumbnail_url`, `published_at` (set once, kept on redelivery), then purge the video's KV keys (watch page, home feed, channel videos). Look the video up by `stream_uid` in this environment's D1; an unknown uid, a `meta.videoId` that names another row, or a malformed message is logged and acked. Never downgrade `ready` to `error`. Must be idempotent, because messages can be redelivered; only unexpected failures (D1) `retry()`.
-5. Nightly `scheduled` reconcile re-checks this environment's stuck videos against the Stream API, wrapped in `Sentry.withMonitor`. The Stream library is shared across environments, so only act on videos that have a row in this environment's D1, plus (stage only) delete stage-tagged Stream videos that have no row.
+5. Nightly `scheduled` reconcile (`lib/reconcile.ts`, 03:00 UTC) re-checks this environment's stuck videos against the Stream API through the same `syncWithStream` as the studio re-check, wrapped in `Sentry.withMonitor` (`reconcile-videos`). The Stream library is shared across environments, so only act on videos that have a row in this environment's D1, plus (stage only) delete stage-tagged Stream videos that have no row. Per-run caps keep it under 50 Stream calls (the free plan's subrequest limit).
+6. Moderation (`routes/reports.ts`, `routes/moderation.ts`, docs/Moderation.md): a takedown sets `taken_down_at`, which hides the video everywhere (`lib/availability.ts`) and turns on Stream `requireSignedURLs`.
 
 ## VideoStats Durable Object
 
@@ -71,4 +72,8 @@ Any write that changes what those show must delete the affected keys with `purge
 
 ## Testing
 
-Vitest with `@cloudflare/vitest-plugin`, against local D1/KV/DO. Mock the Stream API; replay recorded webhook payloads for the queue consumer. Cover status transitions, idempotency (repeat likes, redelivered queue messages) and ownership checks.
+Vitest with `@cloudflare/vitest-plugin`, against local D1/KV/DO. Mock the Stream API; replay recorded webhook payloads for the queue consumer. Cover status transitions, idempotency (repeat likes, redelivered queue messages) and ownership checks (a second user gets 404 and nothing changes). `lifecycle.test.ts` chains the real upload, webhook, queue and API steps for one video.
+
+- D1 rows persist between the tests of one file: use unique ids, emails and handles (the `test/helpers` do), or reset what a test depends on.
+- `signUp()` and `mockTurnstile()` call `vi.restoreAllMocks()`: attach spies (e.g. on `telemetry` to check spans and metrics) after them.
+- Per-IP rate limits only apply with a `CF-Connecting-IP` header, and the limiter's counts outlive a test: use a random IP per test.

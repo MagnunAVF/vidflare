@@ -43,8 +43,9 @@ Tailwind + shadcn/ui. Reach for existing shadcn components before writing custom
 
 - `tanstackRouterBrowserTracingIntegration(router)`, `tracePropagationTargets: [/^\/api\//]`, replays on error only with `maskAllText: true`.
 - `Sentry.setUser({ id })` on login, `setUser(null)` on logout. Never email.
-- Client metrics: `upload.client_duration`, `player.start_time`.
+- Client metrics through `clientMetrics` in `lib/sentry.ts`: `upload.client_duration`, `player.start_time`.
+- `beforeSend` / `beforeSendSpan` run the shared scrubbers (`@vidflare/shared` sentry-scrub): credential headers filtered, query strings cut (search text lives in `?q=`). Spans are streamed, so don't rely on `beforeSendTransaction`.
 
 ## Testing
 
-Component tests with Vitest. Playwright E2E covers the core journey: sign up → upload short video → watch → like → comment, run against stage.
+No client unit tests yet (the Vitest config covers the Worker only); add component tests with Vitest when a component grows logic worth testing on its own. Playwright E2E (`apps/web/e2e/journey.spec.ts`, `pnpm test:e2e`) covers the core journey: sign up → upload short video → watch → like → comment, against local dev or stage (`E2E_BASE_URL`). It finds elements by role and label, so keep those stable (or update the spec with them).

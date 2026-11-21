@@ -30,6 +30,8 @@ pnpm exec wrangler types        # then commit wrangler.jsonc and worker-configur
 
 The script is idempotent: it reuses resources that exist, creates the missing ones and writes the D1/KV ids over the placeholders in `wrangler.jsonc`. It never deletes anything.
 
+Two things need no setup: the rate limiters (`ratelimits`, each environment with its own `namespace_id`s) and the nightly reconcile cron (`triggers.crons`) are created by the deploy from `wrangler.jsonc`. The Sentry cron monitor `reconcile-videos` appears after the first nightly run (see [SentrySetup.md](SentrySetup.md)).
+
 Then apply the D1 schema remotely (after that, CI does it on every deploy: push to `dev` for stage, push to `main` for production):
 
 ```sh

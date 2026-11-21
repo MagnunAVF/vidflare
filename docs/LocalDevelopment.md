@@ -26,7 +26,9 @@ pnpm dev                                           # SPA + Worker on http://loca
 | `VIDEO_STATS` | Durable Object `VideoStats` (SQLite) | ✅ |
 | `triggers.crons` | Nightly reconcile (`lib/reconcile.ts`) | ✅ never fires on its own; run it with `curl "http://localhost:5173/cdn-cgi/handler/scheduled?cron=0+3+*+*+*"`. It asks the Stream API (the shared library, like every local Stream call) about this D1's videos stuck for over an hour, so the seeded demo rows with fake uids turn `error`. |
 
-Tests (`pnpm test`) use the same bindings, isolated per test, with migrations applied automatically.
+Rate limiters (`ratelimits` in `wrangler.jsonc`) run locally too, but only the per-account login limit applies: per-IP limits need the `CF-Connecting-IP` header, which only Cloudflare sets.
+
+Tests (`pnpm test`) run in the Workers runtime with the same bindings, with migrations applied automatically. D1 rows persist between the tests of one file, so tests use unique ids, emails and handles.
 
 ## What points at stage, and how
 

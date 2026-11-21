@@ -18,7 +18,7 @@ Ship a working video platform in 8 weeks where creators upload videos and viewer
 
 **Out of scope for MVP** (see post-MVP backlog)
 
-- Live streaming, playlists, notifications, recommendations, monetization, private videos with signed URLs, moderation tooling, mobile apps
+- Live streaming, playlists, notifications, recommendations, monetization, private videos with signed URLs, moderation tooling (beyond the report button and the token-protected takedown API, see [Moderation.md](Moderation.md)), mobile apps
 
 ## Tech stack
 
@@ -39,13 +39,15 @@ One Worker serves both the React SPA (static assets) and the Hono API under `/ap
 | Auth | Better Auth (D1 adapter) or hand-rolled sessions | Password hashing via Web Crypto (PBKDF2) |
 | Video | Cloudflare Stream | Direct creator upload, webhook on ready |
 | Database | D1 | Single database for MVP |
-| Counters | Durable Objects | One object per video for views and likes |
-| Cache | KV | Home feed and channel page cache |
-| Async | Queues | Stream webhook events, counter flushes |
+| Counters | Durable Objects | One object per video for views (likes are D1 rows + a counter in one batch) |
+| Cache | KV | 60 s: first page of the home feed and channel videos; channel and watch pages for signed-out visitors |
+| Async | Queues | Stream webhook events (view counts flush from the Durable Object's own alarm) |
+| Rate limiting | Workers Rate Limiting bindings | Sign-up/login, comments, uploads, views |
+| Scheduled | Cron Trigger | Nightly reconcile of stuck uploads (Sentry cron monitor) |
 | Images | R2 + Images | Avatars and custom thumbnails |
 | Bot protection | Turnstile | Sign-up, comment, upload |
 | Observability | Sentry (`@sentry/cloudflare`, `@sentry/react`, `@sentry/vite-plugin`) | Errors, tracing, logs, metrics, replays on error; see Observability with Sentry |
-| Testing | Vitest + `@cloudflare/vitest-plugin`, Playwright | Runs tests inside the Workers runtime |
+| Testing | Vitest + `@cloudflare/vitest-plugin`, Playwright | Worker tests inside the Workers runtime; Playwright E2E of the core journey |
 | CI/CD | GitHub Actions + Wrangler | Checks on every PR, deploy on merge (`dev` → stage, `main` → production), Sentry release + source map upload |
 
 ## Repository structure and setup
@@ -69,6 +71,7 @@ vidflare/
 │     │     ├─ db/schema.ts    # Drizzle schema
 │     │     ├─ services/stream.ts
 │     │     └─ do/VideoStats.ts
+│     ├─ e2e/                  # Playwright journey
 │     ├─ migrations/
 │     ├─ vite.config.ts
 │     └─ wrangler.jsonc
@@ -81,7 +84,7 @@ vidflare/
 1. `pnpm create cloudflare@latest web --framework=react` (Vite + Workers template), then add `hono`, `drizzle-orm`, `zod`, `@hono/zod-validator`.
 2. In `vite.config.ts` add `cloudflare()` from `@cloudflare/vite-plugin` next to `react()`.
 3. Create resources per environment (one account, names suffixed with the env): `wrangler d1 create vidflare-db-<env>`, `wrangler kv namespace create CACHE-<env>`, `wrangler r2 bucket create vidflare-media-<env>`, `wrangler queues create stream-events-<env>`, for `stage` and `production` (`scripts/setup-cloudflare.sh` does this). Locally the unsuffixed names are simulated by Miniflare.
-4. Enable Stream in the dashboard; create an API token with Stream:Edit; store `STREAM_ACCOUNT_ID`, `STREAM_API_TOKEN`, `STREAM_WEBHOOK_SECRET`, `TURNSTILE_SECRET`, `AUTH_SECRET` with `wrangler secret put`.
+4. Enable Stream in the dashboard; create an API token with Stream:Edit; store `STREAM_ACCOUNT_ID`, `STREAM_API_TOKEN`, `STREAM_WEBHOOK_SECRET`, `TURNSTILE_SECRET`, `AUTH_SECRET`, `SENTRY_DSN` and `MODERATION_TOKEN` with `wrangler secret put` (all required: a deploy fails while one is unset).
 5. Configure the account's single Stream webhook URL to the production Worker, `https://<production domain>/api/webhooks/stream`, which routes events to each environment (see Stream across environments).
 6. Run `wrangler types` to generate the `Env` type used by `new Hono<{ Bindings: Env }>()`.
 
@@ -103,6 +106,8 @@ vidflare/
   },
   "durable_objects": { "bindings": [{ "name": "VIDEO_STATS", "class_name": "VideoStats" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["VideoStats"] }],
+  "ratelimits": [{ "name": "AUTH_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } } /* + COMMENT, UPLOAD, VIEW */],
+  "triggers": { "crons": ["0 3 * * *"] },
   "observability": { "enabled": true }
 }
 ```
@@ -228,10 +233,10 @@ sequenceDiagram
 
 **Upload details**
 
-1. `POST /api/videos/uploads` takes the metadata and the file size, generates the video id, creates a resumable (tus) direct creator upload in Stream with `maxDurationSeconds` and `meta: { env: ENVIRONMENT, videoId }`, then inserts the `videos` row with status `uploading` and the returned `uid` in one write. If the insert fails, the Stream video is deleted. It returns the one-time tus URL, which the browser uploads to directly.
+1. `POST /api/videos/uploads` takes the metadata and the file size; after the upload rate limit, the creator's storage budget (2 h per creator; refused with under a minute left) and Turnstile, it generates the video id, creates a resumable (tus) direct creator upload in Stream with `maxDurationSeconds` = min(15 min, what's left of the budget) and `meta: { env: ENVIRONMENT, videoId }`, then inserts the `videos` row with status `uploading` and the returned `uid` in one write. If the insert fails, the Stream video is deleted. It returns the one-time tus URL, which the browser uploads to directly.
 2. The browser uploads with tus-js-client to the returned URL, then calls `POST /api/videos/:id/uploaded`, which sets status to `processing` only `WHERE status = 'uploading'`. This way a webhook that arrives first and sets `ready` is never overwritten.
 3. `POST /api/webhooks/stream` verifies the `Webhook-Signature` HMAC, then enqueues the event to the queue of the environment in `meta.env` (see Stream across environments); it returns 200 fast.
-4. The queue consumer sets `ready` (or `error`), stores `duration_s` and `thumbnail_url`, sets `published_at`, and deletes the cached home feed and channel keys in KV (added with the KV cache in Phase 4). It's idempotent, never turns a `ready` video into `error`, and acks events for unknown uids or mismatched `meta.videoId` after logging them.
+4. The queue consumer sets `ready` (or `error`), stores `duration_s` and `thumbnail_url`, sets `published_at`, and deletes the video's KV keys (watch page, home feed, channel videos). It's idempotent, never turns a `ready` video into `error`, and acks events for unknown uids or mismatched `meta.videoId` after logging them.
 
 **Stream across environments**
 
@@ -258,7 +263,11 @@ Trade-offs, accepted: stage gets no webhooks while production is down (the re-ch
 
 **Playback**
 
-- The watch page loads metadata from `/api/videos/:id` (served from KV cache for 60 s) and embeds the Stream player by `stream_uid`. Video segments are served by Stream's CDN, not the Worker.
+- The watch page loads metadata from `/api/videos/:id` (from the KV cache for 60 s for signed-out visitors; signed-in viewers read D1 for their own like/subscribe state) and embeds the Stream player by `stream_uid`. Video segments are served by Stream's CDN, not the Worker.
+
+**Reports and takedown**
+
+- Signed-in viewers report a video (reason + optional details, one report per video). A person reviews the queue and takes videos down or restores them through the token-protected `/api/moderation` routes ([Moderation.md](Moderation.md)). A takedown sets `taken_down_at`, which hides the video from every listing and its watch page (404 for everyone, the owner included), and turns on Stream `requireSignedURLs` so copied player links stop working too.
 
 **Views and likes**
 
@@ -281,11 +290,11 @@ Nine routes cover the MVP; every page reads through TanStack Query hooks wrappin
 | Route | Page | Main components |
 | --- | --- | --- |
 | `/` | Home feed | `VideoGrid`, `VideoCard`, infinite scroll |
-| `/watch/:id` | Watch page | `StreamPlayer`, `LikeButton`, `SubscribeButton`, `CommentList`, `CommentForm` |
+| `/watch/:id` | Watch page | `StreamPlayer`, `LikeButton`, `ReportButton`, `SubscribeButton`, `CommentList`, `CommentForm` |
 | `/c/:handle` | Channel | `ChannelHeader`, `VideoGrid` |
 | `/feed/subscriptions` | Subscriptions | `VideoGrid` (auth required) |
 | `/search?q=` | Search results | `SearchBar`, `VideoList` |
-| `/upload` | Upload | `UploadDropzone` (tus), progress bar, metadata form |
+| `/upload` | Upload | `UploadDropzone` (tus), progress bar, metadata form, storage used |
 | `/studio` | Creator studio | `StudioTable` with status badges, edit/delete |
 | `/login`, `/signup` | Auth | `AuthForm`, `Turnstile` widget |
 | `/settings` | Profile | Channel name, handle, avatar upload |
@@ -325,8 +334,8 @@ gantt
 **Exit criteria per phase**
 
 - [x] Foundation: a user can sign up and log in on a stage URL; CI deploys stage on merge to `dev`; a test error and its trace show up in Sentry for stage.
-- [ ] Upload and watch: a 5-minute video uploads, turns `ready` via webhook, and plays on the watch page.
-- [ ] Social: likes, comments, views and subscriptions work and counters stay correct after a DO flush.
+- [x] Upload and watch: a 5-minute video uploads, turns `ready` via webhook, and plays on the watch page.
+- [x] Social: likes, comments, views and subscriptions work and counters stay correct after a DO flush.
 - [ ] Launch prep: E2E suite green, Sentry alerts and dashboards in place, source maps resolving, production deployed behind your domain.
 
 ## Observability with Sentry
@@ -437,7 +446,8 @@ Sentry.init({
 
 - Alerts: new issue in production; `/api` error rate above 2% for 5 min; p95 of `GET /api/videos/:id` above 500 ms; any `upload.failed` spike; `webhook.signature_invalid` above 0; missed check-in of the nightly cron.
 - Dashboards: upload funnel (started → ready → failed), API latency p95 per route, queue processing time, views per hour.
-- Privacy: scrub `Cookie` and `Authorization` headers in `beforeSend`, keep `sendDefaultPii: false`, mask text in replays.
+- Privacy: `dataCollection` off for user info, cookies, bodies and query strings; scrub `Cookie`, `Authorization` and query strings in `beforeSend` and `beforeSendSpan` (spans are streamed in SDK v11, so `beforeSendTransaction` never runs); mask all text and inputs in replays.
+- The concrete alert rules and dashboard widgets are defined in [SentrySetup.md](SentrySetup.md) (steps 8 and 9) and are created in the Sentry organization by hand.
 - Workers Logs stays on as a free fallback for raw request logs.
 
 ## Testing, deployment, costs and risks
@@ -446,7 +456,7 @@ Sentry.init({
 
 - Unit and route tests with Vitest in the Workers runtime (`@cloudflare/vitest-plugin`), using local D1, KV and Durable Objects.
 - Mock the Stream API in tests; replay recorded webhook payloads to test the queue consumer.
-- Playwright end-to-end: sign up → upload a short sample video → watch → like → comment, run against a stage Worker.
+- Playwright end-to-end (`apps/web/e2e`, `pnpm test:e2e`): sign up → upload a short sample video → watch → like → comment, run against a stage Worker (`E2E_BASE_URL`) or local dev.
 
 **Environments and deployment**
 
@@ -466,12 +476,12 @@ Sentry.init({
 
 | Risk | Mitigation |
 | --- | --- |
-| Stream delivery cost grows with views | Set budget alerts; cap upload length (e.g. 15 min) and storage per creator |
+| Stream delivery cost grows with views | Set budget alerts; upload length capped at 15 min and storage at 2 h per creator |
 | D1 10 GB cap and single-writer throughput | Keep hot counters in Durable Objects; plan a split of comments into its own D1 |
 | No interactive transactions in D1 | Use `db.batch()` and conditional SQL (`ON CONFLICT`, `WHERE`) for invariants |
-| Abuse: spam uploads, comments, fake views | Turnstile, rate limiting rules, one view per session per video in the DO |
+| Abuse: spam uploads, comments, fake views | Turnstile (sign-up, comment, upload), Workers Rate Limiting (login, comments, uploads, views), one view per viewer per video in the DO |
 | Webhook missed or delayed | Studio page can trigger a status re-check via the Stream API; nightly reconcile cron |
-| Copyright or illegal uploads | Report button + manual takedown flow before public launch |
+| Copyright or illegal uploads | Report button + manual takedown flow ([Moderation.md](Moderation.md)); publish a takedown contact address before public launch |
 
 **Post-MVP backlog**
 
