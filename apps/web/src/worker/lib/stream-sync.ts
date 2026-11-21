@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm'
 
 import type { Db } from '../db/client'
 import { videos } from '../db/schema'
-import { applyStreamEvent } from '../queue/stream-events'
+import { applyStreamEvent, recordStreamOutcome } from '../queue/stream-events'
 import { getVideo, streamConfig } from '../services/stream'
 import { purgeVideoByStreamUid } from './cache'
 import type { StreamEvent } from './stream-events'
@@ -65,6 +65,7 @@ export async function syncWithStream(
   if (event && (await applyStreamEvent(db, event)) === 'applied') {
     changed = true
     await purgeVideoByStreamUid(env.CACHE, db, uid)
+    await recordStreamOutcome(db, event, 'recheck')
   }
   return { streamState: stream?.state ?? 'not_found', changed }
 }

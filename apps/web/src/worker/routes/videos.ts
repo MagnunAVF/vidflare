@@ -96,6 +96,7 @@ export const videoRoutes = new Hono<AppEnv>()
         throw err
       }
 
+      telemetry.count('upload.started')
       return c.json({ videoId, uploadUrl: upload.uploadUrl }, 201)
     },
   )

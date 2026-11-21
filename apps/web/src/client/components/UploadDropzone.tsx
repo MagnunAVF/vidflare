@@ -21,6 +21,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { UploadStatus } from '@/components/UploadStatus'
 import { ApiRequestError } from '@/lib/api'
 import { formatDuration, formatMinutes } from '@/lib/format'
+import { clientMetrics } from '@/lib/sentry'
 import { uploadToStream } from '@/lib/tus'
 import { readVideoDuration } from '@/lib/video-file'
 import { useCreateUpload, useMarkUploaded } from '@/lib/videos'
@@ -137,10 +138,12 @@ export function UploadDropzone(props: {
       abort.current = new AbortController()
       setPhase({ name: 'uploading', progress: 0 })
       try {
+        const uploadStarted = performance.now()
         await uploadToStream(file, created.uploadUrl, {
           signal: abort.current.signal,
           onProgress: (progress) => setPhase({ name: 'uploading', progress }),
         })
+        clientMetrics.uploadDuration(performance.now() - uploadStarted)
         setPhase({ name: 'finishing' })
         await markUploaded.mutateAsync(created.videoId)
         setPhase({ name: 'done', videoId: created.videoId })

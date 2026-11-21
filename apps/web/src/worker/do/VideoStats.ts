@@ -98,6 +98,7 @@ export class VideoStats extends DurableObject<Env> {
     if ((await this.ctx.storage.getAlarm()) === null) {
       await this.ctx.storage.setAlarm(now + VIEW_FLUSH_INTERVAL_MS)
     }
+    telemetry.count('video.view_recorded')
     return { recorded: true, viewCount: this.stats()!.views }
   }
 
@@ -131,6 +132,8 @@ export class VideoStats extends DurableObject<Env> {
     }
 
     this.sql.exec('UPDATE stats SET flushed = ? WHERE id = 1', pending.views)
+    // Flush size: the views this flush wrote to D1 (one row per object, so rows = 1 always).
+    telemetry.distribution('stats.flush_rows', pending.views - pending.flushed, 'none')
     // Views that arrived while D1 was being written still need a flush.
     const after = this.stats()
     if (after && after.views > after.flushed && (await this.ctx.storage.getAlarm()) === null) {

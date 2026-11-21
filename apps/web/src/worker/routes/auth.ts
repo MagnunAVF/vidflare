@@ -8,6 +8,7 @@ import { ApiError } from '../lib/errors'
 import { uuidv7 } from '../lib/id'
 import { toMeResponse } from '../lib/me'
 import { hashPassword, verifyPassword } from '../lib/password'
+import { telemetry } from '../lib/telemetry'
 import { clearSessionCookie, deleteSession, newSession, setSessionCookie } from '../lib/session'
 import { byIp, enforceRateLimit, hashedKey } from '../middleware/rate-limit'
 import { requireUser } from '../middleware/session'
@@ -72,7 +73,15 @@ export const auth = new Hono<AppEnv>()
     // Brute force: per IP (many accounts from one place) and per account (one account from many
     // places), before any D1 read or PBKDF2 work. Over the limit is a 429 either way, so it
     // doesn't reveal whether the email has an account.
-    await enforceRateLimit(c, 'AUTH_LIMITER', [byIp(c), await hashedKey('email', email)])
+    try {
+      await enforceRateLimit(c, 'AUTH_LIMITER', [byIp(c), await hashedKey('email', email)])
+    } catch (err) {
+      // Blocked guesses are the clearest brute-force signal: count them too.
+      if (err instanceof ApiError && err.status === 429) {
+        telemetry.count('auth.login_failed', { reason: 'rate_limited' })
+      }
+      throw err
+    }
     const db = getDb(c.env.DB)
     const row = await db
       .select({
@@ -92,7 +101,11 @@ export const auth = new Hono<AppEnv>()
     // Always run one PBKDF2 verify so an unknown email answers like a wrong password,
     // in the same time and with the same error.
     const valid = await verifyPassword(password, row?.passwordHash ?? (await dummyHash()))
-    if (!row || !valid) throw new ApiError(401, 'invalid_credentials')
+    if (!row || !valid) {
+      // No hint of which: unknown email and wrong password count the same.
+      telemetry.count('auth.login_failed', { reason: 'invalid_credentials' })
+      throw new ApiError(401, 'invalid_credentials')
+    }
 
     const session = await newSession(row.id, c.env.AUTH_SECRET)
     await db.insert(sessions).values(session.row)

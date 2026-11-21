@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 
+import { clientMetrics } from '@/lib/sentry'
 import { loadStreamSdk } from '@/lib/stream-sdk'
 
 // Seconds of actual playback before the video counts as watched.
@@ -48,11 +49,26 @@ export function StreamPlayer(props: { src: string; title: string; onWatched?: ()
         const onSeeked = () => {
           last = player.currentTime
         }
+        // player.start_time: from the first play request to the first frame, once per load.
+        let playRequestedAt: number | null = null
+        let startReported = false
+        const onPlay = () => {
+          if (playRequestedAt === null) playRequestedAt = performance.now()
+        }
+        const onPlaying = () => {
+          if (startReported || playRequestedAt === null) return
+          startReported = true
+          clientMetrics.playerStartTime(performance.now() - playRequestedAt)
+        }
         player.addEventListener('timeupdate', onTimeUpdate)
         player.addEventListener('seeked', onSeeked)
+        player.addEventListener('play', onPlay)
+        player.addEventListener('playing', onPlaying)
         detach = () => {
           player.removeEventListener?.('timeupdate', onTimeUpdate)
           player.removeEventListener?.('seeked', onSeeked)
+          player.removeEventListener?.('play', onPlay)
+          player.removeEventListener?.('playing', onPlaying)
         }
       })
       // Without the SDK the video still plays; it just isn't counted.

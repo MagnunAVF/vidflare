@@ -9,6 +9,41 @@ import { streamEvent, type StreamEvent } from '../lib/stream-events'
 
 export type ApplyResult = 'applied' | 'unchanged' | 'unknown_uid' | 'video_mismatch'
 
+// Where a Stream outcome was learned: the webhook (queue), or asking Stream (studio re-check
+// and nightly reconcile).
+export type OutcomeSource = 'webhook' | 'recheck'
+
+// The upload funnel metrics for an event that changed a video: upload.ready (with
+// video.processing_time, from the row's creation to now) or upload.failed (with Stream's
+// error code). Call it only for 'applied' events, so redeliveries never count twice.
+export async function recordStreamOutcome(
+  db: Db,
+  event: StreamEvent,
+  source: OutcomeSource,
+  now = Date.now(),
+): Promise<void> {
+  if (event.state === 'error') {
+    telemetry.count('upload.failed', { source, reason: event.errorReasonCode ?? 'unknown' })
+    return
+  }
+  telemetry.count('upload.ready', { source })
+  const row = await db
+    .select({ createdAt: videos.createdAt })
+    .from(videos)
+    .where(eq(videos.streamUid, event.uid))
+    .get()
+  if (row) {
+    telemetry.distribution(
+      'video.processing_time',
+      Math.max(0, now - row.createdAt),
+      'millisecond',
+      {
+        source,
+      },
+    )
+  }
+}
+
 // Applies one Stream event to this environment's D1. Idempotent: queues redeliver, so a repeat
 // is a no-op ('unchanged'). Only this environment's rows are touched: the video is found by
 // stream_uid in its own D1, so a mis-routed event finds nothing ('unknown_uid').
@@ -89,7 +124,10 @@ export async function handleStreamEvents(batch: MessageBatch<unknown>, env: Env)
           const result = await applyStreamEvent(db, event)
           span.setAttribute('stream_event.result', result)
           // purgeCache logs its own failures, so the event is never retried over the cache.
-          if (result === 'applied') await purgeVideoByStreamUid(env.CACHE, db, event.uid)
+          if (result === 'applied') {
+            await purgeVideoByStreamUid(env.CACHE, db, event.uid)
+            await recordStreamOutcome(db, event, 'webhook')
+          }
           if (result === 'applied' && event.state === 'ready') {
             log('info', { msg: 'video.ready', ...ids, durationS: event.durationS })
           } else if (result === 'applied') {

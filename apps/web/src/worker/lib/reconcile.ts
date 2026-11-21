@@ -4,6 +4,7 @@ import { getDb } from '../db/client'
 import { videos } from '../db/schema'
 import { deleteVideo, listVideos, streamConfig } from '../services/stream'
 import { syncWithStream } from './stream-sync'
+import { telemetry } from './telemetry'
 
 // Nightly at 03:00 UTC (wrangler.jsonc `triggers.crons` must match). Also the schedule of the
 // Sentry cron monitor, so a missed or failed night alerts.
@@ -90,7 +91,10 @@ export async function reconcileVideos(env: Env, now = Date.now()): Promise<Recon
           .where(and(eq(videos.id, video.id), eq(videos.status, 'uploading')))
           .returning({ id: videos.id })
           .get()
-        if (marked) report.abandoned++
+        if (marked) {
+          report.abandoned++
+          telemetry.count('upload.failed', { source: 'reconcile', reason: 'abandoned' })
+        }
       }
     } catch (err) {
       report.failed++

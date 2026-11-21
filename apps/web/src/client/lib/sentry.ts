@@ -2,6 +2,16 @@ import * as Sentry from '@sentry/react'
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
+// Client-side metrics from the roadmap's table. No-ops when Sentry is off (no DSN).
+export const clientMetrics = {
+  // Upload time a creator waits: from the first tus byte to Stream having the whole file.
+  uploadDuration: (ms: number) =>
+    Sentry.metrics.distribution('upload.client_duration', ms, { unit: 'millisecond' }),
+  // Time to first frame: from pressing play to the player actually playing.
+  playerStartTime: (ms: number) =>
+    Sentry.metrics.distribution('player.start_time', ms, { unit: 'millisecond' }),
+}
+
 // Called once before render. No VITE_SENTRY_DSN (local dev) means no SDK at all.
 // The router is typed loosely, like Sentry's own integration signature.
 export function initSentry(router: unknown) {
