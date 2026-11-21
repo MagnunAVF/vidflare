@@ -65,7 +65,7 @@ Any write that changes what those show must delete the affected keys with `purge
 
 ## Observability
 
-- Custom spans: `stream.create_upload`, `queue.stream_event` (attr `video.id`), `stats.flush`.
+- Custom spans: `stream.create_upload`, `queue.stream_event` (attr `video.id`), `stats.flush`. Open them with `telemetry.startSpan` (`lib/telemetry.ts`), not `Sentry.startSpan`, so tests can spy on them.
 - Metrics and log names follow the table in the roadmap's "Observability with Sentry" section. Reuse those names.
 - Structured attributes only (ids, durations). No emails, tokens or free text.
 

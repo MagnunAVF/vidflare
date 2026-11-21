@@ -1,9 +1,9 @@
-import * as Sentry from '@sentry/cloudflare'
 import { DurableObject } from 'cloudflare:workers'
 import { eq, sql } from 'drizzle-orm'
 
 import { getDb } from '../db/client'
 import { videos } from '../db/schema'
+import { telemetry } from '../lib/telemetry'
 
 // How often accepted views are written to D1, at most.
 export const VIEW_FLUSH_INTERVAL_MS = 60_000
@@ -110,7 +110,7 @@ export class VideoStats extends DurableObject<Env> {
     const pending = this.stats()
     if (!pending || pending.views === pending.flushed) return
 
-    const videoGone = await Sentry.startSpan(
+    const videoGone = await telemetry.startSpan(
       { name: 'stats.flush', op: 'db.update', attributes: { 'video.id': pending.video_id } },
       async () => {
         const updated = await getDb(this.env.DB)

@@ -9,6 +9,7 @@ import { ApiError } from '../lib/errors'
 import { publicVideoPage } from '../lib/feed'
 import { channelStorage } from '../lib/storage'
 import { subscribedBy } from '../lib/subscriptions'
+import { telemetry } from '../lib/telemetry'
 import { uuidv7 } from '../lib/id'
 import { byUser, rateLimit } from '../middleware/rate-limit'
 import { requireUser } from '../middleware/session'
@@ -59,11 +60,24 @@ export const videoRoutes = new Hono<AppEnv>()
       const now = Date.now()
       const videoId = uuidv7(now)
       const stream = streamConfig(c.env)
-      const upload = await createDirectUpload(stream, {
-        sizeBytes: input.sizeBytes,
-        maxDurationSeconds: storage.maxUploadS,
-        meta: { env: c.env.ENVIRONMENT, videoId },
-      })
+      // Its own span: the Stream API call is the slow, external part of starting an upload.
+      const upload = await telemetry.startSpan(
+        {
+          name: 'stream.create_upload',
+          op: 'http.client',
+          attributes: {
+            'video.id': videoId,
+            'upload.size_bytes': input.sizeBytes,
+            'upload.max_duration_s': storage.maxUploadS,
+          },
+        },
+        () =>
+          createDirectUpload(stream, {
+            sizeBytes: input.sizeBytes,
+            maxDurationSeconds: storage.maxUploadS,
+            meta: { env: c.env.ENVIRONMENT, videoId },
+          }),
+      )
 
       try {
         await getDb(c.env.DB).insert(videos).values({

@@ -4,6 +4,7 @@ import { and, eq, inArray, ne, sql } from 'drizzle-orm'
 import { getDb, type Db } from '../db/client'
 import { videos } from '../db/schema'
 import { purgeVideoByStreamUid } from '../lib/cache'
+import { telemetry } from '../lib/telemetry'
 import { streamEvent, type StreamEvent } from '../lib/stream-events'
 
 export type ApplyResult = 'applied' | 'unchanged' | 'unknown_uid' | 'video_mismatch'
@@ -71,24 +72,41 @@ export async function handleStreamEvents(batch: MessageBatch<unknown>, env: Env)
     const event = parsed.data
     const ids = { uid: event.uid, videoId: event.videoId, messageId: message.id }
 
-    try {
-      const result = await applyStreamEvent(db, event)
-      // purgeCache logs its own failures, so the event is never retried over the cache.
-      if (result === 'applied') await purgeVideoByStreamUid(env.CACHE, db, event.uid)
-      if (result === 'applied' && event.state === 'ready') {
-        log('info', { msg: 'video.ready', ...ids, durationS: event.durationS })
-      } else if (result === 'applied') {
-        log('warn', { msg: 'video.error', ...ids, errorReasonCode: event.errorReasonCode })
-      } else if (result === 'unchanged') {
-        log('info', { msg: 'stream_event.duplicate', ...ids, state: event.state })
-      } else {
-        log('warn', { msg: `stream_event.${result}`, ...ids })
-      }
-      message.ack()
-    } catch (err) {
-      Sentry.captureException(err)
-      log('error', { msg: 'stream_event.failed', ...ids, attempts: message.attempts })
-      message.retry()
-    }
+    // One span per message, so a slow or failing event shows up on its own in traces.
+    await telemetry.startSpan(
+      {
+        name: 'queue.stream_event',
+        op: 'queue.process',
+        attributes: {
+          'video.id': event.videoId ?? undefined,
+          'stream.state': event.state,
+          'messaging.message.id': message.id,
+          'messaging.message.retry.count': message.attempts - 1,
+        },
+      },
+      async (span) => {
+        try {
+          const result = await applyStreamEvent(db, event)
+          span.setAttribute('stream_event.result', result)
+          // purgeCache logs its own failures, so the event is never retried over the cache.
+          if (result === 'applied') await purgeVideoByStreamUid(env.CACHE, db, event.uid)
+          if (result === 'applied' && event.state === 'ready') {
+            log('info', { msg: 'video.ready', ...ids, durationS: event.durationS })
+          } else if (result === 'applied') {
+            log('warn', { msg: 'video.error', ...ids, errorReasonCode: event.errorReasonCode })
+          } else if (result === 'unchanged') {
+            log('info', { msg: 'stream_event.duplicate', ...ids, state: event.state })
+          } else {
+            log('warn', { msg: `stream_event.${result}`, ...ids })
+          }
+          message.ack()
+        } catch (err) {
+          span.setStatus({ code: 2, message: 'internal_error' })
+          Sentry.captureException(err)
+          log('error', { msg: 'stream_event.failed', ...ids, attempts: message.attempts })
+          message.retry()
+        }
+      },
+    )
   }
 }
