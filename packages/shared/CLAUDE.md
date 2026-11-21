@@ -1,6 +1,6 @@
 # packages/shared
 
-Zod schemas and DTO types shared by the Worker (`zValidator`) and the React client (React Hook Form). Imported as `@vidflare/shared`.
+Zod schemas and DTO types shared by the Worker (`zValidator`) and the React client (React Hook Form). Imported as `@vidflare/shared`. The one exception is `sentry-scrub.ts`, a dependency-free function both Sentry SDKs run in `beforeSend`, kept here so the two sides can't drift apart.
 
 ## Rules
 

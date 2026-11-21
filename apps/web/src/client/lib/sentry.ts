@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react'
+import { scrubSentryEvent } from '@vidflare/shared'
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
@@ -43,5 +44,9 @@ export function initSentry(router: unknown) {
       httpBodies: [],
       urlQueryParams: false,
     },
+    // A last pass on everything that leaves: credential headers filtered, query strings cut
+    // (navigation breadcrumbs carry /search?q=...). Same function as the Worker.
+    beforeSend: (event) => scrubSentryEvent(event),
+    beforeSendTransaction: (event) => scrubSentryEvent(event),
   })
 }

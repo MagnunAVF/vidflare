@@ -1,4 +1,5 @@
 import type { CloudflareOptions } from '@sentry/cloudflare'
+import { scrubSentryEvent } from '@vidflare/shared'
 
 // Shared by withSentry (fetch/queue) and the Durable Object wrapper. An empty SENTRY_DSN
 // (local dev, tests) disables the SDK.
@@ -22,4 +23,8 @@ export const sentryOptions = (env: Env): CloudflareOptions => ({
     httpBodies: [],
     urlQueryParams: false,
   },
+  // A last pass on everything that leaves: credential headers filtered, query strings cut (see
+  // @vidflare/shared sentry-scrub). Same function as the browser SDK.
+  beforeSend: (event) => scrubSentryEvent(event),
+  beforeSendTransaction: (event) => scrubSentryEvent(event),
 })

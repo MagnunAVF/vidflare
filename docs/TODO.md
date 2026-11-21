@@ -135,7 +135,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 **Observability**
 - [x] Custom spans: `stream.create_upload`, `queue.stream_event`, `stats.flush`
 - [x] Metrics from the roadmap table (upload, webhook, views, flush, auth, client timings)
-- [ ] `beforeSend` scrubbing `Cookie` / `Authorization`; replay text masking
+- [x] `beforeSend` scrubbing `Cookie` / `Authorization`; replay text masking
 - [ ] Alerts: new prod issue, `/api` error rate > 2%, p95 video detail > 500 ms, `upload.failed` spike, `webhook.signature_invalid` > 0, missed cron check-in
 - [ ] Dashboards: upload funnel, API p95 per route, queue processing time, views per hour
 

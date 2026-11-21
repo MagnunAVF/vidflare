@@ -43,4 +43,39 @@ describe('sentryOptions', () => {
     const headers = JSON.stringify(dataCollection?.httpHeaders)
     expect(headers).not.toMatch(/cookie|authorization/i)
   })
+
+  it('scrubs credentials and query strings from errors and transactions before sending', () => {
+    const { beforeSend, beforeSendTransaction } = options()
+    const request = () => ({
+      url: 'https://vidflare.app/api/search?q=private',
+      headers: { Cookie: 'vf_session=secret', Authorization: 'Bearer token', 'cf-ray': 'r' },
+    })
+
+    const error = beforeSend!({ type: undefined, request: request() }, {})
+    expect(error).toMatchObject({
+      request: {
+        url: 'https://vidflare.app/api/search',
+        headers: { Cookie: '[Filtered]', Authorization: '[Filtered]', 'cf-ray': 'r' },
+      },
+    })
+
+    const transaction = beforeSendTransaction!(
+      {
+        type: 'transaction',
+        request: request(),
+        spans: [
+          {
+            description: 'GET /api/search?q=private',
+            span_id: '1',
+            trace_id: '2',
+            start_timestamp: 0,
+            status: 'ok',
+            data: {},
+          },
+        ],
+      },
+      {},
+    )
+    expect(JSON.stringify(transaction)).not.toMatch(/private|secret|Bearer/)
+  })
 })

@@ -32,7 +32,7 @@ The same DSN works for every environment; events are told apart by `environment`
 
 ## 3. Lock down privacy in the project
 
-The SDKs already send no cookies, headers (beyond a small allow-list), request bodies, query strings or IPs; only the user **id**. Add Sentry's server-side safety net on top:
+The SDKs already send no cookies, headers (beyond a small allow-list), request bodies, query strings or IPs; only the user **id**. On top of that, both run `scrubSentryEvent` (`packages/shared/src/sentry-scrub.ts`) as `beforeSend` and `beforeSendTransaction`: `Cookie`, `Set-Cookie`, `Authorization` and `Webhook-Signature` become `[Filtered]`, and query strings are cut from request URLs, breadcrumbs and spans (search text lives in `?q=`). Add Sentry's server-side safety net on top:
 
 **Settings → Projects → vidflare → Security & Privacy**
 - **Data Scrubber**: on
