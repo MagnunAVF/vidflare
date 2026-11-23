@@ -4,6 +4,7 @@ import { Hono } from 'hono'
 
 import { getDb } from '../db/client'
 import { channels } from '../db/schema'
+import { channelCacheKeys, purgeCache } from '../lib/cache'
 import { ApiError } from '../lib/errors'
 import { uuidv7 } from '../lib/id'
 import { IMAGE_EXTENSIONS, sniffImageType } from '../lib/images'
@@ -50,6 +51,11 @@ export const me = new Hono<AppEnv>()
       throw err
     }
     if (!updated) throw new ApiError(404, 'not_found')
+    // Both handles: the old one's pages must stop answering, the new one's must not be stale.
+    await purgeCache(c.env.CACHE, [
+      ...channelCacheKeys(user.channel.handle),
+      ...channelCacheKeys(updated.handle),
+    ])
     return c.json(toMeResponse({ ...user, channel: { ...user.channel, ...updated } }), 200)
   })
   // Replace the channel's avatar: store the image in R2 under a fresh key
@@ -77,6 +83,7 @@ export const me = new Hono<AppEnv>()
       await c.env.MEDIA.delete(key).catch(() => {})
       throw err
     }
+    await purgeCache(c.env.CACHE, channelCacheKeys(user.channel.handle))
     // Best effort: a leftover old object is only wasted storage.
     if (user.channel.avatarKey) await c.env.MEDIA.delete(user.channel.avatarKey).catch(() => {})
 
@@ -89,6 +96,7 @@ export const me = new Hono<AppEnv>()
       .update(channels)
       .set({ avatarKey: null })
       .where(eq(channels.id, user.channel.id))
+    await purgeCache(c.env.CACHE, channelCacheKeys(user.channel.handle))
     if (user.channel.avatarKey) await c.env.MEDIA.delete(user.channel.avatarKey).catch(() => {})
     return c.json(toMeResponse({ ...user, channel: { ...user.channel, avatarKey: null } }), 200)
   })

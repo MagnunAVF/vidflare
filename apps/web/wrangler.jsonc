@@ -29,6 +29,10 @@
   // STREAM_CUSTOMER_CODE: the account's Stream playback subdomain (customer-<code>.cloudflarestream.com).
   // Public (it is in every embed URL) and the same in every env, since they share one account.
   "vars": { "ENVIRONMENT": "local", "STREAM_CUSTOMER_CODE": "0fq81iqdnjco39qo" },
+  // Nightly reconcile (lib/reconcile.ts, RECONCILE_CRON). Set in every env, so no env can lose
+  // it by accident. Locally it never fires on its own: trigger it with
+  // `curl "http://localhost:5173/cdn-cgi/handler/scheduled?cron=0+3+*+*+*"`.
+  "triggers": { "crons": ["0 3 * * *"] },
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "d1_databases": [
     {
@@ -46,6 +50,15 @@
   "durable_objects": {
     "bindings": [{ "name": "VIDEO_STATS", "class_name": "VideoStats" }],
   },
+  // Workers Rate Limiting (middleware/rate-limit.ts). Counted per Cloudflare location over the
+  // period (10 or 60 s). namespace_id is account-wide, so every env has its own ids; keep the
+  // limits the same in all three blocks.
+  "ratelimits": [
+    { "name": "AUTH_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
+    { "name": "COMMENT_LIMITER", "namespace_id": "1002", "simple": { "limit": 5, "period": 60 } },
+    { "name": "UPLOAD_LIMITER", "namespace_id": "1003", "simple": { "limit": 5, "period": 60 } },
+    { "name": "VIEW_LIMITER", "namespace_id": "1004", "simple": { "limit": 60, "period": 60 } },
+  ],
   // Set with `wrangler secret put --env <env>`; locally from .dev.vars (see .dev.vars.example).
   // Listing them types them in Env and warns when one is missing.
   "secrets": {
@@ -56,6 +69,8 @@
       "TURNSTILE_SECRET",
       "AUTH_SECRET",
       "SENTRY_DSN",
+      // Bearer token for the manual takedown API (docs/Moderation.md).
+      "MODERATION_TOKEN",
     ],
   },
 
@@ -63,6 +78,7 @@
     // Worker: vidflare-stage
     "stage": {
       "vars": { "ENVIRONMENT": "stage", "STREAM_CUSTOMER_CODE": "0fq81iqdnjco39qo" },
+      "triggers": { "crons": ["0 3 * * *"] },
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "d1_databases": [
         {
@@ -81,6 +97,20 @@
       "durable_objects": {
         "bindings": [{ "name": "VIDEO_STATS", "class_name": "VideoStats" }],
       },
+      "ratelimits": [
+        { "name": "AUTH_LIMITER", "namespace_id": "2001", "simple": { "limit": 10, "period": 60 } },
+        {
+          "name": "COMMENT_LIMITER",
+          "namespace_id": "2002",
+          "simple": { "limit": 5, "period": 60 },
+        },
+        {
+          "name": "UPLOAD_LIMITER",
+          "namespace_id": "2003",
+          "simple": { "limit": 5, "period": 60 },
+        },
+        { "name": "VIEW_LIMITER", "namespace_id": "2004", "simple": { "limit": 60, "period": 60 } },
+      ],
       "secrets": {
         "required": [
           "STREAM_ACCOUNT_ID",
@@ -89,6 +119,7 @@
           "TURNSTILE_SECRET",
           "AUTH_SECRET",
           "SENTRY_DSN",
+          "MODERATION_TOKEN",
         ],
       },
     },
@@ -96,6 +127,7 @@
     // Worker: vidflare-production
     "production": {
       "vars": { "ENVIRONMENT": "production", "STREAM_CUSTOMER_CODE": "0fq81iqdnjco39qo" },
+      "triggers": { "crons": ["0 3 * * *"] },
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "d1_databases": [
         {
@@ -119,6 +151,20 @@
       "durable_objects": {
         "bindings": [{ "name": "VIDEO_STATS", "class_name": "VideoStats" }],
       },
+      "ratelimits": [
+        { "name": "AUTH_LIMITER", "namespace_id": "3001", "simple": { "limit": 10, "period": 60 } },
+        {
+          "name": "COMMENT_LIMITER",
+          "namespace_id": "3002",
+          "simple": { "limit": 5, "period": 60 },
+        },
+        {
+          "name": "UPLOAD_LIMITER",
+          "namespace_id": "3003",
+          "simple": { "limit": 5, "period": 60 },
+        },
+        { "name": "VIEW_LIMITER", "namespace_id": "3004", "simple": { "limit": 60, "period": 60 } },
+      ],
       "secrets": {
         "required": [
           "STREAM_ACCOUNT_ID",
@@ -127,6 +173,7 @@
           "TURNSTILE_SECRET",
           "AUTH_SECRET",
           "SENTRY_DSN",
+          "MODERATION_TOKEN",
         ],
       },
     },

@@ -18,3 +18,7 @@ AUTH_SECRET=
 
 # Leave empty to keep Sentry off locally, or use the stage DSN.
 SENTRY_DSN=
+
+# Bearer token for the moderation API (docs/Moderation.md). Empty turns those routes off (404).
+# Any local value works, e.g. openssl rand -hex 32
+MODERATION_TOKEN=

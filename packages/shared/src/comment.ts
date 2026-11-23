@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { COMMENT_MAX } from './limits'
+import { turnstileToken } from './turnstile'
 
 // POST /api/videos/:id/comments. Flat comments (replies are post-MVP).
 export const createCommentInput = z.object({
@@ -9,7 +10,7 @@ export const createCommentInput = z.object({
     .trim()
     .min(1, 'Write a comment')
     .max(COMMENT_MAX, `At most ${COMMENT_MAX} characters`),
-  turnstileToken: z.string().min(1, 'Complete the challenge'),
+  turnstileToken,
 })
 export type CreateCommentInput = z.input<typeof createCommentInput>
 

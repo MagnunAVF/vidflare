@@ -9,6 +9,7 @@ import {
   PASSWORD_MAX,
   PASSWORD_MIN,
 } from './limits'
+import { turnstileToken } from './turnstile'
 
 // Normalized before validation so `Alice@Example.com ` and `alice@example.com` are one account.
 const email = z
@@ -41,7 +42,7 @@ export const signupInput = z.object({
     .max(PASSWORD_MAX, `At most ${PASSWORD_MAX} characters`),
   handle: channelHandle,
   name: channelName,
-  turnstileToken: z.string().min(1, 'Complete the challenge'),
+  turnstileToken,
 })
 export type SignupInput = z.input<typeof signupInput>
 

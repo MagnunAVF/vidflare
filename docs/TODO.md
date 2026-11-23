@@ -70,7 +70,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] `POST /api/webhooks/stream`: verify `Webhook-Signature` HMAC, route by `meta.env` (`production` → `EVENTS`, `stage` → `STAGE_EVENTS`, else warn + drop), return 200
 - [x] `STAGE_EVENTS` producer on `stream-events-stage` in the production env only; `wrangler types`
 - [x] Queue consumer: set `ready`/`error`, `duration_s`, `thumbnail_url`, `published_at`; idempotent; unknown `stream_uid` logged and acked
-- [ ] Point the account's Stream webhook URL at production; store the returned secret as production's `STREAM_WEBHOOK_SECRET`
+- [x] Point the account's Stream webhook URL at production; store the returned secret as production's `STREAM_WEBHOOK_SECRET`
 - [x] Recorded webhook payloads as test fixtures
 
 **Watch and feeds**
@@ -86,7 +86,7 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] Re-check button that queries the Stream API for stuck videos
 
 **Exit criteria**
-- [ ] A 5-minute video uploads, turns `ready` via webhook, and plays on the watch page
+- [x] A 5-minute video uploads, turns `ready` via webhook, and plays on the watch page
 
 ## Phase 3: Social (weeks 5–6)
 
@@ -113,35 +113,35 @@ Task tracker for the MVP, derived from [Roadmap.md](Roadmap.md). Tick items as t
 - [x] `/settings` page: name, handle, avatar
 
 **Exit criteria**
-- [ ] Likes, comments, views and subscriptions work and counters stay correct after a DO flush
+- [x] Likes, comments, views and subscriptions work and counters stay correct after a DO flush
 
 ## Phase 4: Launch prep (weeks 7–8)
 
 **Search**
-- [ ] `videos_fts` FTS5 table + sync triggers (raw SQL migration)
-- [ ] `GET /api/search?q=` joined to `videos` with the public-listing filter
-- [ ] `/search` page: `SearchBar`, `VideoList`, Zod-validated search params
+- [x] `videos_fts` FTS5 table + sync triggers (raw SQL migration)
+- [x] `GET /api/search?q=` joined to `videos` with the public-listing filter
+- [x] `/search` page: `SearchBar`, `VideoList`, Zod-validated search params
 
 **Cache and abuse protection**
-- [ ] KV cache for home feed, channel pages and video detail (60 s); purge on writes and in the queue consumer
-- [ ] Turnstile on sign-up, comment and upload (verified end to end)
-- [ ] Rate limiting rules (login, comments, uploads, views)
-- [ ] Upload length cap (e.g. 15 min) and per-creator storage cap
+- [x] KV cache for home feed, channel pages and video detail (60 s); purge on writes and in the queue consumer
+- [x] Turnstile on sign-up, comment and upload (verified end to end)
+- [x] Rate limiting rules (login, comments, uploads, views)
+- [x] Upload length cap (e.g. 15 min) and per-creator storage cap
 
 **Reliability**
-- [ ] Nightly `scheduled` reconcile job wrapped in `Sentry.withMonitor`
-- [ ] Report button + manual takedown flow
+- [x] Nightly `scheduled` reconcile job wrapped in `Sentry.withMonitor`
+- [x] Report button + manual takedown flow
 
 **Observability**
-- [ ] Custom spans: `stream.create_upload`, `queue.stream_event`, `stats.flush`
-- [ ] Metrics from the roadmap table (upload, webhook, views, flush, auth, client timings)
-- [ ] `beforeSend` scrubbing `Cookie` / `Authorization`; replay text masking
-- [ ] Alerts: new prod issue, `/api` error rate > 2%, p95 video detail > 500 ms, `upload.failed` spike, `webhook.signature_invalid` > 0, missed cron check-in
-- [ ] Dashboards: upload funnel, API p95 per route, queue processing time, views per hour
+- [x] Custom spans: `stream.create_upload`, `queue.stream_event`, `stats.flush`
+- [x] Metrics from the roadmap table (upload, webhook, views, flush, auth, client timings)
+- [x] `beforeSend` scrubbing `Cookie` / `Authorization`; replay text masking
+- [ ] Alerts: new prod issue, `/api` error rate > 2%, p95 video detail > 500 ms, `upload.failed` spike, `webhook.signature_invalid` > 0, missed cron check-in (defined in [SentrySetup.md](SentrySetup.md) step 8; left: create them in Sentry after the first production deploy)
+- [ ] Dashboards: upload funnel, API p95 per route, queue processing time, views per hour (defined in [SentrySetup.md](SentrySetup.md) step 9; left: build it in Sentry)
 
 **Testing and launch**
-- [ ] Vitest route/unit tests in the Workers runtime (status transitions, idempotency, ownership)
-- [ ] Playwright E2E against stage: sign up → upload → watch → like → comment
+- [x] Vitest route/unit tests in the Workers runtime (status transitions, idempotency, ownership)
+- [ ] Playwright E2E against stage: sign up → upload → watch → like → comment (suite in `apps/web/e2e`, passes against local dev; left: a green run with `E2E_BASE_URL=<stage>` once this branch is on stage)
 - [ ] Budget alerts on Stream and Workers usage
 - [ ] Production deploy behind the custom domain
 

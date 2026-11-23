@@ -43,4 +43,43 @@ describe('sentryOptions', () => {
     const headers = JSON.stringify(dataCollection?.httpHeaders)
     expect(headers).not.toMatch(/cookie|authorization/i)
   })
+
+  it('scrubs credentials and query strings from errors and streamed spans before sending', () => {
+    const { beforeSend, beforeSendSpan, beforeSendTransaction } = options()
+    // Spans are streamed (the v11 default), so a transaction hook would never run.
+    expect(beforeSendTransaction).toBeUndefined()
+    const request = () => ({
+      url: 'https://vidflare.app/api/search?q=private',
+      headers: { Cookie: 'vf_session=secret', Authorization: 'Bearer token', 'cf-ray': 'r' },
+    })
+
+    const error = beforeSend!({ type: undefined, request: request() }, {})
+    expect(error).toMatchObject({
+      request: {
+        url: 'https://vidflare.app/api/search',
+        headers: { Cookie: '[Filtered]', Authorization: '[Filtered]', 'cf-ray': 'r' },
+      },
+    })
+
+    const span = beforeSendSpan!({
+      trace_id: '2',
+      span_id: '1',
+      name: 'GET /api/search?q=private',
+      start_timestamp: 0,
+      status: 'ok',
+      is_segment: true,
+      attributes: {
+        'url.full': 'https://vidflare.app/api/search?q=private',
+        'url.query': 'q=private',
+        'http.request.header.cookie': 'vf_session=secret',
+        'http.route': '/api/search',
+      },
+    })
+    expect(span.name).toBe('GET /api/search')
+    expect(span.attributes).toEqual({
+      'url.full': 'https://vidflare.app/api/search',
+      'http.request.header.cookie': '[Filtered]',
+      'http.route': '/api/search',
+    })
+  })
 })

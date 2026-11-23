@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { UPLOAD_MAX_BYTES, VIDEO_DESCRIPTION_MAX, VIDEO_TITLE_MAX } from './limits'
+import { turnstileToken } from './turnstile'
 
 // Tuples are exported too so the DB schema can share the exact same values.
 export const VIDEO_STATUSES = ['uploading', 'processing', 'ready', 'error'] as const
@@ -42,7 +43,7 @@ export const createUploadInput = videoMetadataInput.extend({
     .int()
     .positive('The file is empty')
     .max(UPLOAD_MAX_BYTES, `The file is larger than ${UPLOAD_MAX_BYTES / 1024 ** 3} GB`),
-  turnstileToken: z.string().min(1, 'Complete the challenge'),
+  turnstileToken,
 })
 export type CreateUploadInput = z.input<typeof createUploadInput>
 

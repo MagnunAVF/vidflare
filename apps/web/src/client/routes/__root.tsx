@@ -1,7 +1,14 @@
 import { useQuery, type QueryClient } from '@tanstack/react-query'
-import { createRootRouteWithContext, Link, Outlet, useNavigate } from '@tanstack/react-router'
+import {
+  createRootRouteWithContext,
+  Link,
+  Outlet,
+  useNavigate,
+  useRouterState,
+} from '@tanstack/react-router'
 
 import { ChannelAvatar } from '@/components/ChannelAvatar'
+import { SearchBar } from '@/components/SearchBar'
 import { Button } from '@/components/ui/button'
 import { meQuery, useLogout } from '@/lib/auth'
 
@@ -26,13 +33,19 @@ function Header() {
   const { data: me } = useQuery(meQuery)
   const logout = useLogout()
   const navigate = useNavigate()
+  // The q of /search?q= (undefined on every other page).
+  const currentQuery = useRouterState({
+    select: (s) => (s.location.pathname === '/search' ? s.location.search.q : undefined),
+  })
 
   return (
-    <header className="flex items-center justify-between border-b px-4 py-2">
+    <header className="flex items-center justify-between gap-4 border-b px-4 py-2">
       <Link to="/" className="font-semibold">
         vidflare
       </Link>
-      <nav className="flex items-center gap-2">
+      {/* Keyed by the current query so the box shows what the results page is for. */}
+      <SearchBar key={currentQuery ?? ''} initialQuery={currentQuery} />
+      <nav className="flex shrink-0 items-center gap-2">
         {me ? (
           <>
             <Button asChild variant="ghost" size="sm">

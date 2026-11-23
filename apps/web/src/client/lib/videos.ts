@@ -8,11 +8,14 @@ import type { CreateUploadInput, UpdateVideoInput, VideoStatus } from '@vidflare
 
 import { api, unwrap } from './api'
 
-// Creates the video row and a one-time Stream upload URL (POST /api/videos/uploads).
+// Creates the video row and a one-time Stream upload URL (POST /api/videos/uploads). The new
+// upload holds part of the storage budget, so the budget is refetched.
 export function useCreateUpload() {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (input: CreateUploadInput) =>
       unwrap(await api.api.videos.uploads.$post({ json: input })),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: studioStorageQuery.queryKey }),
   })
 }
 
@@ -66,13 +69,21 @@ export const studioVideosQuery = infiniteQueryOptions({
   getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
 })
 
+// The creator's video storage budget (GET /api/studio/storage): seconds used, the limit, and
+// the longest next upload (0 when full).
+export const studioStorageQuery = queryOptions({
+  queryKey: ['studio', 'storage'],
+  queryFn: async () => unwrap(await api.api.studio.storage.$get()),
+})
+
 // After an edit or delete, the studio list, the video's page and the home feed may all be
-// stale (title, visibility, or the video itself).
+// stale (title, visibility, or the video itself), and so may the storage used.
 function useInvalidateVideo() {
   const queryClient = useQueryClient()
   return (id: string) =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: studioVideosQuery.queryKey }),
+      queryClient.invalidateQueries({ queryKey: studioStorageQuery.queryKey }),
       queryClient.invalidateQueries({ queryKey: ['videos', id] }),
       queryClient.invalidateQueries({ queryKey: homeFeedQuery.queryKey }),
     ])

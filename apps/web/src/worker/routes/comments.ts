@@ -12,9 +12,11 @@ import { Hono } from 'hono'
 
 import { getDb } from '../db/client'
 import { channels, comments, videos } from '../db/schema'
+import { availableVideo } from '../lib/availability'
 import { decodeCursor, encodeCursor } from '../lib/cursor'
 import { ApiError } from '../lib/errors'
 import { uuidv7 } from '../lib/id'
+import { byUser, rateLimit } from '../middleware/rate-limit'
 import { requireUser } from '../middleware/session'
 import { validate } from '../middleware/validate'
 import { verifyTurnstile } from '../services/turnstile'
@@ -39,12 +41,19 @@ export const videoCommentRoutes = new Hono<AppEnv>()
 
       const db = getDb(c.env.DB)
       const video = await db
-        .select({ status: videos.status, channelId: videos.channelId })
+        .select({
+          status: videos.status,
+          takenDownAt: videos.takenDownAt,
+          channelId: videos.channelId,
+        })
         .from(videos)
         .where(eq(videos.id, id))
         .get()
       const isOwner = video !== undefined && c.var.user?.channel.id === video.channelId
-      if (!video || (video.status !== 'ready' && !isOwner)) throw new ApiError(404, 'not_found')
+      // Same rule as the watch page: a taken-down video is gone for everyone, its owner too.
+      if (!video || video.takenDownAt !== null || (video.status !== 'ready' && !isOwner)) {
+        throw new ApiError(404, 'not_found')
+      }
 
       const rows = await db
         .select({
@@ -84,6 +93,7 @@ export const videoCommentRoutes = new Hono<AppEnv>()
   .post(
     '/:id/comments',
     requireUser,
+    rateLimit('COMMENT_LIMITER', byUser),
     validate('param', videoIdParam),
     validate('json', createCommentInput),
     async (c) => {
@@ -118,7 +128,7 @@ export const videoCommentRoutes = new Hono<AppEnv>()
                 deletedAt: sql<null>`null`.as('deleted_at'),
               })
               .from(videos)
-              .where(and(eq(videos.id, id), eq(videos.status, 'ready'))),
+              .where(and(eq(videos.id, id), availableVideo())),
           )
           .returning({ id: comments.id }),
         db
