@@ -8,7 +8,7 @@ Task progress is tracked in [docs/TODO.md](docs/TODO.md). Before starting work, 
 
 ## Status
 
-Pre-code. The repo layout and commands below are the planned target from the roadmap; scaffold them as described, don't invent an alternative structure.
+MVP in progress: Phases 1–3 are done and Phase 4 (launch prep) is under way. [docs/TODO.md](docs/TODO.md) has the live state. Keep to the layout below; don't invent an alternative structure.
 
 ## Layout (pnpm workspace)
 
@@ -16,7 +16,8 @@ Pre-code. The repo layout and commands below are the planned target from the roa
 apps/web/            # the only deployable: one Worker serving the React SPA + Hono API under /api
   src/client/        # React + Vite SPA          → see apps/web/src/client/CLAUDE.md
   src/worker/        # Hono API, queue consumer, Durable Objects → see apps/web/src/worker/CLAUDE.md
-  migrations/        # D1 migrations (drizzle-kit)
+  migrations/        # D1 migrations (drizzle-kit; FTS5 table and triggers hand-written)
+  e2e/               # Playwright E2E of the core journey (pnpm test:e2e)
 packages/shared/     # Zod schemas + DTO types shared by client and worker → see packages/shared/CLAUDE.md
 .github/workflows/   # CI/CD
 ```
@@ -32,18 +33,19 @@ TypeScript (strict) · React + Vite + `@cloudflare/vite-plugin` · TanStack Rout
 - Types flow from the server: the client calls the API only through the typed Hono RPC client (`hc<AppType>`). No hand-written fetch calls, no codegen.
 - Validation schemas live once in `packages/shared` and are used by both Hono validators and React forms.
 - Public listings (home, channel, subscriptions feed, search) always filter `visibility = 'public' AND status = 'ready'`.
-- No PII in logs, metrics or Sentry (`sendDefaultPii: false`; user id only, never email).
+- No PII in logs, metrics or Sentry: user id only, never email or free text. Both Sentry SDKs set `dataCollection` with user info, cookies, bodies and query strings off, and scrub what's left in `beforeSend` / `beforeSendSpan` (`packages/shared/src/sentry-scrub.ts`).
 - Secrets go through `wrangler secret put` (runtime) or CI secrets (`SENTRY_AUTH_TOKEN`). Never commit them or put them in `wrangler.jsonc` `vars`.
 - Keep to MVP scope. Live streaming, playlists, notifications, recommendations, private/signed videos, monetization and comment replies are post-MVP; don't build them unless asked.
 
-## Commands (planned)
+## Commands
 
 ```sh
 pnpm install
 pnpm dev                 # vite dev (runs the Worker inside Vite)
-pnpm typecheck && pnpm lint && pnpm test
+pnpm typecheck && pnpm lint && pnpm test                  # Vitest, Worker tests in the Workers runtime
+pnpm test:e2e            # Playwright journey; local dev by default, E2E_BASE_URL=<stage> for stage
 pnpm --filter web exec wrangler types                     # regenerate Env after binding changes
-pnpm --filter web exec wrangler d1 migrations apply vidflare-db --local
+pnpm --filter web db:setup:local                          # local D1: apply migrations + seed
 ```
 
 ## Environments and deploy

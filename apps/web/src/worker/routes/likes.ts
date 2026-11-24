@@ -4,6 +4,7 @@ import { Hono } from 'hono'
 
 import { getDb } from '../db/client'
 import { likes, videos } from '../db/schema'
+import { availableVideo, isAvailable } from '../lib/availability'
 import { ApiError } from '../lib/errors'
 import { requireUser } from '../middleware/session'
 import { validate } from '../middleware/validate'
@@ -32,7 +33,7 @@ export const likeRoutes = new Hono<AppEnv>()
               createdAt: sql<number>`${now}`.as('created_at'),
             })
             .from(videos)
-            .where(and(eq(videos.id, id), eq(videos.status, 'ready'))),
+            .where(and(eq(videos.id, id), availableVideo())),
         )
         .onConflictDoNothing(),
       db
@@ -40,13 +41,17 @@ export const likeRoutes = new Hono<AppEnv>()
         .set({ likeCount: sql`${videos.likeCount} + changes()` })
         .where(eq(videos.id, id)),
       db
-        .select({ status: videos.status, likeCount: videos.likeCount })
+        .select({
+          status: videos.status,
+          takenDownAt: videos.takenDownAt,
+          likeCount: videos.likeCount,
+        })
         .from(videos)
         .where(eq(videos.id, id)),
     ])
 
     const row = video[0]
-    if (!row || row.status !== 'ready') throw new ApiError(404, 'not_found')
+    if (!row || !isAvailable(row)) throw new ApiError(404, 'not_found')
     return c.json({ liked: true, likeCount: row.likeCount }, 200)
   })
   .delete('/:id/like', requireUser, validate('param', videoIdParam), async (c) => {
@@ -60,12 +65,16 @@ export const likeRoutes = new Hono<AppEnv>()
         .set({ likeCount: sql`max(${videos.likeCount} - changes(), 0)` })
         .where(eq(videos.id, id)),
       db
-        .select({ status: videos.status, likeCount: videos.likeCount })
+        .select({
+          status: videos.status,
+          takenDownAt: videos.takenDownAt,
+          likeCount: videos.likeCount,
+        })
         .from(videos)
         .where(eq(videos.id, id)),
     ])
 
     const row = video[0]
-    if (!row || row.status !== 'ready') throw new ApiError(404, 'not_found')
+    if (!row || !isAvailable(row)) throw new ApiError(404, 'not_found')
     return c.json({ liked: false, likeCount: row.likeCount }, 200)
   })

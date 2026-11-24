@@ -14,6 +14,7 @@ import { useCreateComment } from '@/lib/comments'
 
 const errorMessages: Record<string, string> = {
   turnstile_failed: 'The challenge failed. Please try again.',
+  rate_limited: 'You’re commenting too fast. Wait a minute and try again.',
   unauthorized: 'Your session ended. Sign in again to comment.',
   not_found: 'This video can’t take comments right now.',
 }

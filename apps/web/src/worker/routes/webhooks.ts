@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 
 import { ApiError } from '../lib/errors'
 import { queueFor, toStreamEvent, verifyStreamSignature } from '../lib/stream-events'
+import { telemetry } from '../lib/telemetry'
 import type { AppEnv } from '../types'
 
 const log = (level: 'info' | 'warn', fields: Record<string, unknown>) =>
@@ -23,6 +24,7 @@ export const webhooks = new Hono<AppEnv>().post('/stream', async (c) => {
   )
   if (!signed) {
     log('warn', { msg: 'webhook.signature_invalid', requestId })
+    telemetry.count('webhook.signature_invalid')
     throw new ApiError(401, 'invalid_signature')
   }
 

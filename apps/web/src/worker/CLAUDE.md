@@ -5,7 +5,7 @@ Hono app on Cloudflare Workers. It also exports the queue consumer, the `schedul
 ## Structure
 
 - `index.ts`: builds the app, chains routes, exports `AppType`, the default handler (`fetch`, `queue`, `scheduled`) wrapped in `Sentry.withSentry`, and `VideoStats` wrapped in `Sentry.instrumentDurableObjectWithSentry`
-- `routes/`: `auth`, `videos`, `channels`, `comments`, `feed`, `search`, `studio`, `me`, `webhooks`, `debug` (`GET /debug/error` throws on purpose to verify Sentry; signed-in only, 404 in production)
+- `routes/`: `auth`, `videos`, `channels`, `comments`, `feed`, `search`, `studio`, `me`, `webhooks`, `reports` (viewer reports), `moderation` (takedown API behind `MODERATION_TOKEN`, see docs/Moderation.md), `debug` (`GET /debug/error` throws on purpose to verify Sentry; signed-in only, 404 in production)
 - `middleware/`: request id + logger, error handler, session loader, `requireUser`, rate limit
 - `db/schema.ts`: Drizzle schema (the source of truth for migrations)
 - `services/stream.ts`: Stream API client (direct upload, delete, status lookup)
@@ -27,7 +27,8 @@ Hono app on Cloudflare Workers. It also exports the queue consumer, the `schedul
 - Keep invariants in SQL: `INSERT ... ON CONFLICT DO NOTHING` for likes/subscriptions, conditional `WHERE` for status transitions (e.g. `uploading → processing` only `WHERE status = 'uploading'`).
 - IDs are UUIDv7/ULID generated in the Worker. Timestamps are integer epoch ms.
 - Pagination is a cursor on `(published_at, id)`. Never `OFFSET`.
-- Public listings filter `visibility = 'public' AND status = 'ready'`. Search joins `videos_fts` back to `videos` and applies the same filter.
+- Public listings filter `visibility = 'public' AND status = 'ready'` and skip taken-down videos (`taken_down_at`). Search joins `videos_fts` back to `videos` and applies the same filter.
+- Anything a viewer does with one video (watch, view, like, comment, report) requires it to be available: `availableVideo()` / `isAvailable()` in `lib/availability.ts` (ready and not taken down). A taken-down video is a 404 for everyone, its owner included.
 - Read the denormalized counters (`view_count`, `like_count`, `comment_count`, `subscriber_count`). Never `COUNT(*)` in feeds. The exception: subscribe/unsubscribe recompute `subscriber_count` from `subscriptions` inside the same batch.
 
 ## Video lifecycle
@@ -37,8 +38,9 @@ Hono app on Cloudflare Workers. It also exports the queue consumer, the `schedul
 1. `POST /videos/uploads`: generate the video id, create a tus Stream direct creator upload (needs the file size) with `maxDurationSeconds` and `meta: { env: env.ENVIRONMENT, videoId }`, then insert the row (`uploading`, with `stream_uid`). Delete the Stream video if the insert fails. Return the one-time tus URL.
 2. `POST /videos/:id/uploaded`: set `processing` only from `uploading`.
 3. `POST /webhooks/stream`: verify the `Webhook-Signature` HMAC (`STREAM_WEBHOOK_SECRET`), then route by `meta.env` and return 200 fast: an event tagged with the Worker's own `ENVIRONMENT` goes to `EVENTS`, production also forwards `stage` to `STAGE_EVENTS` (a producer bound only in production), and anything else (e.g. `local` or untagged on production) gets a `warn` log and is dropped (`lib/stream-events.ts` → `queueFor`). The queue message is `StreamEvent`; stage may consume messages from a different production version, so only add optional fields to it. No D1 work and no other logic here: the account's single Stream webhook lands on production, so this handler serves every environment. An invalid signature gets a `warn` log and the `webhook.signature_invalid` metric.
-4. Queue consumer (`queue/stream-events.ts`): set `ready`/`error`, `duration_s`, `thumbnail_url`, `published_at` (set once, kept on redelivery), then purge the home feed and channel KV keys (once the KV cache exists, Phase 4). Look the video up by `stream_uid` in this environment's D1; an unknown uid, a `meta.videoId` that names another row, or a malformed message is logged and acked. Never downgrade `ready` to `error`. Must be idempotent, because messages can be redelivered; only unexpected failures (D1) `retry()`.
-5. Nightly `scheduled` reconcile re-checks this environment's stuck videos against the Stream API, wrapped in `Sentry.withMonitor`. The Stream library is shared across environments, so only act on videos that have a row in this environment's D1, plus (stage only) delete stage-tagged Stream videos that have no row.
+4. Queue consumer (`queue/stream-events.ts`): set `ready`/`error`, `duration_s`, `thumbnail_url`, `published_at` (set once, kept on redelivery), then purge the video's KV keys (watch page, home feed, channel videos). Look the video up by `stream_uid` in this environment's D1; an unknown uid, a `meta.videoId` that names another row, or a malformed message is logged and acked. Never downgrade `ready` to `error`. Must be idempotent, because messages can be redelivered; only unexpected failures (D1) `retry()`.
+5. Nightly `scheduled` reconcile (`lib/reconcile.ts`, 03:00 UTC) re-checks this environment's stuck videos against the Stream API through the same `syncWithStream` as the studio re-check, wrapped in `Sentry.withMonitor` (`reconcile-videos`). The Stream library is shared across environments, so only act on videos that have a row in this environment's D1, plus (stage only) delete stage-tagged Stream videos that have no row. Per-run caps keep it under 50 Stream calls (the free plan's subrequest limit).
+6. Moderation (`routes/reports.ts`, `routes/moderation.ts`, docs/Moderation.md): a takedown sets `taken_down_at`, which hides the video everywhere (`lib/availability.ts`) and turns on Stream `requireSignedURLs`.
 
 ## VideoStats Durable Object
 
@@ -52,16 +54,26 @@ Hono app on Cloudflare Workers. It also exports the queue consumer, the `schedul
 - Sign-up creates user + channel + session in one `db.batch()` after verifying Turnstile.
 - Turnstile is required on sign-up, comment creation and upload creation.
 
+## Rate limits
+
+Workers Rate Limiting bindings (`ratelimits` in `wrangler.jsonc`, `middleware/rate-limit.ts`), 60 s windows, counted per Cloudflare location: `AUTH_LIMITER` 10 (sign-up and login per IP, login also per hashed email), `COMMENT_LIMITER` 5 per user, `UPLOAD_LIMITER` 5 per user, `VIEW_LIMITER` 60 per IP. Check them before Turnstile, PBKDF2, Stream or D1 work. Over the limit is 429 `rate_limited` with `Retry-After`; a failing limiter lets the request through. Per-IP limits are skipped without `CF-Connecting-IP` (local dev and tests). Each env needs its own `namespace_id`s.
+
 ## Caching
 
-KV `CACHE`: home feed, channel pages and video detail (60 s). Any write that changes what those show must delete the affected keys.
+KV `CACHE` (`lib/cache.ts`), 60 s TTL: the first page of the home feed and of each channel's videos (same for every viewer), and the channel and watch pages for signed-out requests only. Signed-in responses carry per-viewer fields and live counters, so they read D1. Later pages read D1. 404s are never cached.
+
+Any write that changes what those show must delete the affected keys with `purgeCache` (`videoCacheKeys` for a video, `channelCacheKeys` for a channel's name/handle/avatar). Counters (views, likes, comments, subscribers) are left to the TTL: purging per like would hit KV's one-write-per-second-per-key limit.
 
 ## Observability
 
-- Custom spans: `stream.create_upload`, `queue.stream_event` (attr `video.id`), `stats.flush`.
+- Custom spans: `stream.create_upload`, `queue.stream_event` (attr `video.id`), `stats.flush`. Open them with `telemetry.startSpan` (`lib/telemetry.ts`), not `Sentry.startSpan`, so tests can spy on them.
 - Metrics and log names follow the table in the roadmap's "Observability with Sentry" section. Reuse those names.
 - Structured attributes only (ids, durations). No emails, tokens or free text.
 
 ## Testing
 
-Vitest with `@cloudflare/vitest-plugin`, against local D1/KV/DO. Mock the Stream API; replay recorded webhook payloads for the queue consumer. Cover status transitions, idempotency (repeat likes, redelivered queue messages) and ownership checks.
+Vitest with `@cloudflare/vitest-plugin`, against local D1/KV/DO. Mock the Stream API; replay recorded webhook payloads for the queue consumer. Cover status transitions, idempotency (repeat likes, redelivered queue messages) and ownership checks (a second user gets 404 and nothing changes). `lifecycle.test.ts` chains the real upload, webhook, queue and API steps for one video.
+
+- D1 rows persist between the tests of one file: use unique ids, emails and handles (the `test/helpers` do), or reset what a test depends on.
+- `signUp()` and `mockTurnstile()` call `vi.restoreAllMocks()`: attach spies (e.g. on `telemetry` to check spans and metrics) after them.
+- Per-IP rate limits only apply with a `CF-Connecting-IP` header, and the limiter's counts outlive a test: use a random IP per test.

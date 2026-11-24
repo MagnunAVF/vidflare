@@ -3,9 +3,46 @@ import { and, eq, inArray, ne, sql } from 'drizzle-orm'
 
 import { getDb, type Db } from '../db/client'
 import { videos } from '../db/schema'
+import { purgeVideoByStreamUid } from '../lib/cache'
+import { telemetry } from '../lib/telemetry'
 import { streamEvent, type StreamEvent } from '../lib/stream-events'
 
 export type ApplyResult = 'applied' | 'unchanged' | 'unknown_uid' | 'video_mismatch'
+
+// Where a Stream outcome was learned: the webhook (queue), or asking Stream (studio re-check
+// and nightly reconcile).
+export type OutcomeSource = 'webhook' | 'recheck'
+
+// The upload funnel metrics for an event that changed a video: upload.ready (with
+// video.processing_time, from the row's creation to now) or upload.failed (with Stream's
+// error code). Call it only for 'applied' events, so redeliveries never count twice.
+export async function recordStreamOutcome(
+  db: Db,
+  event: StreamEvent,
+  source: OutcomeSource,
+  now = Date.now(),
+): Promise<void> {
+  if (event.state === 'error') {
+    telemetry.count('upload.failed', { source, reason: event.errorReasonCode ?? 'unknown' })
+    return
+  }
+  telemetry.count('upload.ready', { source })
+  const row = await db
+    .select({ createdAt: videos.createdAt })
+    .from(videos)
+    .where(eq(videos.streamUid, event.uid))
+    .get()
+  if (row) {
+    telemetry.distribution(
+      'video.processing_time',
+      Math.max(0, now - row.createdAt),
+      'millisecond',
+      {
+        source,
+      },
+    )
+  }
+}
 
 // Applies one Stream event to this environment's D1. Idempotent: queues redeliver, so a repeat
 // is a no-op ('unchanged'). Only this environment's rows are touched: the video is found by
@@ -56,7 +93,7 @@ const log = (level: 'info' | 'warn' | 'error', fields: Record<string, unknown>) 
 
 // Consumer for this environment's stream-events queue (fed by the Stream webhook handler).
 // Each message is acked on its own; only an unexpected failure (e.g. D1 down) retries it.
-// Home feed and channel KV keys get purged here once the KV cache exists (Phase 4).
+// A status change purges the video's KV keys (watch page, home feed, channel videos).
 export async function handleStreamEvents(batch: MessageBatch<unknown>, env: Env): Promise<void> {
   const db = getDb(env.DB)
   for (const message of batch.messages) {
@@ -70,22 +107,44 @@ export async function handleStreamEvents(batch: MessageBatch<unknown>, env: Env)
     const event = parsed.data
     const ids = { uid: event.uid, videoId: event.videoId, messageId: message.id }
 
-    try {
-      const result = await applyStreamEvent(db, event)
-      if (result === 'applied' && event.state === 'ready') {
-        log('info', { msg: 'video.ready', ...ids, durationS: event.durationS })
-      } else if (result === 'applied') {
-        log('warn', { msg: 'video.error', ...ids, errorReasonCode: event.errorReasonCode })
-      } else if (result === 'unchanged') {
-        log('info', { msg: 'stream_event.duplicate', ...ids, state: event.state })
-      } else {
-        log('warn', { msg: `stream_event.${result}`, ...ids })
-      }
-      message.ack()
-    } catch (err) {
-      Sentry.captureException(err)
-      log('error', { msg: 'stream_event.failed', ...ids, attempts: message.attempts })
-      message.retry()
-    }
+    // One span per message, so a slow or failing event shows up on its own in traces.
+    await telemetry.startSpan(
+      {
+        name: 'queue.stream_event',
+        op: 'queue.process',
+        attributes: {
+          'video.id': event.videoId ?? undefined,
+          'stream.state': event.state,
+          'messaging.message.id': message.id,
+          'messaging.message.retry.count': message.attempts - 1,
+        },
+      },
+      async (span) => {
+        try {
+          const result = await applyStreamEvent(db, event)
+          span.setAttribute('stream_event.result', result)
+          // purgeCache logs its own failures, so the event is never retried over the cache.
+          if (result === 'applied') {
+            await purgeVideoByStreamUid(env.CACHE, db, event.uid)
+            await recordStreamOutcome(db, event, 'webhook')
+          }
+          if (result === 'applied' && event.state === 'ready') {
+            log('info', { msg: 'video.ready', ...ids, durationS: event.durationS })
+          } else if (result === 'applied') {
+            log('warn', { msg: 'video.error', ...ids, errorReasonCode: event.errorReasonCode })
+          } else if (result === 'unchanged') {
+            log('info', { msg: 'stream_event.duplicate', ...ids, state: event.state })
+          } else {
+            log('warn', { msg: `stream_event.${result}`, ...ids })
+          }
+          message.ack()
+        } catch (err) {
+          span.setStatus({ code: 2, message: 'internal_error' })
+          Sentry.captureException(err)
+          log('error', { msg: 'stream_event.failed', ...ids, attempts: message.attempts })
+          message.retry()
+        }
+      },
+    )
   }
 }

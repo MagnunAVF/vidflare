@@ -1,6 +1,17 @@
 import * as Sentry from '@sentry/react'
+import { scrubSentryEvent, scrubSentrySpan } from '@vidflare/shared'
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+// Client-side metrics from the roadmap's table. No-ops when Sentry is off (no DSN).
+export const clientMetrics = {
+  // Upload time a creator waits: from the first tus byte to Stream having the whole file.
+  uploadDuration: (ms: number) =>
+    Sentry.metrics.distribution('upload.client_duration', ms, { unit: 'millisecond' }),
+  // Time to first frame: from pressing play to the player actually playing.
+  playerStartTime: (ms: number) =>
+    Sentry.metrics.distribution('player.start_time', ms, { unit: 'millisecond' }),
+}
 
 // Called once before render. No VITE_SENTRY_DSN (local dev) means no SDK at all.
 // The router is typed loosely, like Sentry's own integration signature.
@@ -33,5 +44,11 @@ export function initSentry(router: unknown) {
       httpBodies: [],
       urlQueryParams: false,
     },
+    // A last pass on everything that leaves: credential headers filtered, query strings cut
+    // (navigation breadcrumbs and fetch spans carry /search?q=...). Same functions as the
+    // Worker. Spans are streamed (traceLifecycle 'stream', the default), so they go through
+    // beforeSendSpan, not beforeSendTransaction.
+    beforeSend: (event) => scrubSentryEvent(event),
+    beforeSendSpan: (span) => scrubSentrySpan(span),
   })
 }

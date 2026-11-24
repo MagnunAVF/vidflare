@@ -19,6 +19,15 @@ export function formatDuration(seconds: number): string {
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`
 }
 
+// A length of video in hours and minutes: 7200 → "2 h", 3900 → "1 h 5 min", 45 → "1 min".
+export function formatMinutes(seconds: number): string {
+  const totalMin = Math.max(0, Math.ceil(seconds / 60))
+  const h = Math.floor(totalMin / 60)
+  const m = totalMin % 60
+  if (h === 0) return `${m} min`
+  return m === 0 ? `${h} h` : `${h} h ${m} min`
+}
+
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
 const UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
   ['year', 365 * 24 * 3600 * 1000],

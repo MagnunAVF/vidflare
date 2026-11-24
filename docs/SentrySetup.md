@@ -32,7 +32,7 @@ The same DSN works for every environment; events are told apart by `environment`
 
 ## 3. Lock down privacy in the project
 
-The SDKs already send no cookies, headers (beyond a small allow-list), request bodies, query strings or IPs; only the user **id**. Add Sentry's server-side safety net on top:
+The SDKs already send no cookies, headers (beyond a small allow-list), request bodies, query strings or IPs; only the user **id**. On top of that, both run `scrubSentryEvent` as `beforeSend` and `scrubSentrySpan` as `beforeSendSpan` (`packages/shared/src/sentry-scrub.ts`; spans are streamed one by one, the SDK v11 default, so `beforeSendTransaction` would never run): `Cookie`, `Set-Cookie`, `Authorization` and `Webhook-Signature` become `[Filtered]`, and query strings are cut from request URLs, breadcrumbs, span names and URL attributes (search text lives in `?q=`). Add Sentry's server-side safety net on top:
 
 **Settings → Projects → vidflare → Security & Privacy**
 - **Data Scrubber**: on
@@ -97,6 +97,62 @@ VITE_SENTRY_DSN=<stage DSN>
 
 Events are tagged `environment: local`. Local builds never produce source maps. Leave both empty again when done (or keep the localhost inbound filter on).
 
-## Later (Phase 4)
+## What the app sends
 
-Alerts, dashboards, custom spans and metrics are part of the Phase 4 observability work; see "Observability with Sentry" in [Roadmap.md](Roadmap.md).
+Beyond errors and traces (see "Observability with Sentry" in [Roadmap.md](Roadmap.md)):
+
+- **Request names:** every Worker request's root span is named by its route pattern (`GET /api/videos/:id`, with `http.route` set), so latency groups by route, never by video id.
+- **Custom spans:** `stream.create_upload` (op `http.client`), `queue.stream_event` (op `queue.process`, attribute `video.id`), `stats.flush`.
+- **Application metrics** (Explore → Metrics):
+
+| Metric | Kind | Attributes |
+| --- | --- | --- |
+| `upload.started` | counter | — |
+| `upload.ready` | counter | `source`: `webhook` \| `recheck` |
+| `upload.failed` | counter | `source`: `webhook` \| `recheck` \| `reconcile`; `reason`: Stream's error code or `abandoned` |
+| `video.processing_time` | distribution (ms) | `source` |
+| `webhook.signature_invalid` | counter | — |
+| `auth.login_failed` | counter | `reason`: `invalid_credentials` \| `rate_limited` |
+| `video.view_recorded` | counter | — |
+| `stats.flush_rows` | distribution | views written to D1 per flush |
+| `upload.client_duration` | distribution (ms) | browser |
+| `player.start_time` | distribution (ms) | browser |
+
+- **Cron monitor:** `reconcile-videos`, created by the first nightly run in each environment (schedule `0 3 * * *` UTC, 30 min check-in margin, 15 min max runtime).
+
+## 8. Alerts
+
+Create these once the first production deploy has sent data (the metrics and the cron monitor only appear after their first event). Scope every one to **environment `production`** unless noted, and send them to the team's channel (**Notify on preferred channel** → the team). Re-check the names here against Sentry's UI, which evolves.
+
+| # | Alert | Type and source | Query / condition | Fires when |
+| --- | --- | --- | --- | --- |
+| 1 | New production issue | Alert on issues, **A new issue is created** | environment `production` | any new issue |
+| 2 | `/api` 5xx rate | Monitor, dataset **Spans** | `span.op:http.server` and `http.route:/api/*`; value = requests with status ≥ 500 ÷ all requests (an equation of two counts) | above **2%** over **5 minutes** |
+| 3 | Video detail latency | Monitor, dataset **Spans** | `span.op:http.server transaction:"GET /api/videos/:id"`, aggregate `p95(span.duration)` | above **500 ms** over 10 minutes |
+| 4 | Upload failures | Monitor, dataset **Application Metrics** | `sum(upload.failed)` | above **5 in 1 hour** (or anomaly detection, once there's a few weeks of data) |
+| 5 | Webhook signature | Monitor, dataset **Application Metrics** | `sum(webhook.signature_invalid)` | above **0** in 5 minutes |
+| 6 | Nightly reconcile | Alert on issues from **specific monitors** → `reconcile-videos` | missed or failed check-ins become issues | any, in `stage` and `production` |
+
+Notes:
+
+- **#2 must count 5xx only.** Sentry's `failure_rate()` treats any non-OK status as a failure, including our expected 4xx answers (every signed-out page load gets a 401 from `/api/me`, unknown ids get 404s), so it would alert all the time.
+- **#5** only means something in production: the account's single Stream webhook lands there. Any count is either a misconfigured `STREAM_WEBHOOK_SECRET` or someone probing the endpoint.
+- **#6**: the monitor already knows its schedule from the Worker, so a night with no check-in, or a run that throws, becomes an issue. Set its failure tolerance to 1.
+
+## 9. Dashboards
+
+One dashboard, **vidflare – operations**, with the dashboard filter set to environment `production` (switch it to `stage` to check a deploy there). Build each widget in Explore (Metrics or Traces) and use **Save As → Dashboard widget**.
+
+| Widget | Source | Query | Display |
+| --- | --- | --- | --- |
+| Upload funnel | Application Metrics | `sum(upload.started)`, `sum(upload.ready)`, `sum(upload.failed)` | bar chart, 1-day interval |
+| Why uploads fail | Application Metrics | `sum(upload.failed)` grouped by `reason` | table, last 7 days |
+| Time to ready | Application Metrics | `p50(video.processing_time)`, `p95(video.processing_time)` | line chart |
+| API latency per route | Spans | `span.op:http.server`, `p95(span.duration)` grouped by `transaction` (the route pattern) | table sorted by p95, top 20 |
+| Queue processing time | Spans | `span.name:queue.stream_event`, `p50(span.duration)`, `p95(span.duration)` | line chart |
+| Views per hour | Application Metrics | `sum(video.view_recorded)` | bar chart, 1-hour interval |
+| View flushes | Application Metrics | `p50(stats.flush_rows)`, `p95(stats.flush_rows)` | line chart |
+| Failed sign-ins | Application Metrics | `sum(auth.login_failed)` grouped by `reason` | bar chart, 1-hour interval |
+| Creator and viewer experience | Application Metrics | `p75(upload.client_duration)`, `p75(player.start_time)` | line chart |
+
+The first four answer the roadmap's questions (upload funnel, API p95 per route, queue processing time, views per hour); the rest are what to look at when one of the alerts fires.

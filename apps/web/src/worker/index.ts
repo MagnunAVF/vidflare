@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 
 import { VideoStats as VideoStatsBase } from './do/VideoStats'
 import { notFound, onError } from './lib/errors'
+import { RECONCILE_CRON, RECONCILE_MONITOR_SLUG, reconcileVideos } from './lib/reconcile'
 import { requestContext } from './middleware/request-context'
 import { sessionLoader } from './middleware/session'
 import { auth } from './routes/auth'
@@ -14,6 +15,9 @@ import { handleStreamEvents } from './queue/stream-events'
 import { likeRoutes } from './routes/likes'
 import { me } from './routes/me'
 import { mediaRoutes } from './routes/media'
+import { moderationRoutes } from './routes/moderation'
+import { reportRoutes } from './routes/reports'
+import { searchRoutes } from './routes/search'
 import { studio } from './routes/studio'
 import { videoRoutes } from './routes/videos'
 import { viewRoutes } from './routes/views'
@@ -42,11 +46,14 @@ const app = new Hono<AppEnv>()
   .route('/videos', likeRoutes)
   .route('/videos', videoCommentRoutes)
   .route('/videos', viewRoutes)
+  .route('/videos', reportRoutes)
   .route('/comments', commentRoutes)
   .route('/channels', channelRoutes)
   .route('/feed', feedRoutes)
+  .route('/search', searchRoutes)
   .route('/media', mediaRoutes)
   .route('/studio', studio)
+  .route('/moderation', moderationRoutes)
   .route('/webhooks', webhooks)
   .route('/debug', debug)
 
@@ -58,4 +65,16 @@ export default Sentry.withSentry(sentryOptions, {
 
   // Consumer for this environment's stream-events queue (Stream ready/error events).
   queue: handleStreamEvents,
+
+  // Nightly reconcile (cron in wrangler.jsonc). The Sentry cron monitor gets an in-progress
+  // check-in, then ok or error (reconcileVideos throws when a step failed); a night with no
+  // check-in at all alerts as missed. The monitor is created from this config on first run.
+  scheduled: async (_controller, env) => {
+    await Sentry.withMonitor(RECONCILE_MONITOR_SLUG, () => reconcileVideos(env), {
+      schedule: { type: 'crontab', value: RECONCILE_CRON },
+      timezone: 'Etc/UTC',
+      checkinMargin: 30, // minutes late before it counts as missed
+      maxRuntime: 15, // minutes
+    })
+  },
 } satisfies ExportedHandler<Env>)

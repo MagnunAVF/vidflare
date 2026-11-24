@@ -24,8 +24,11 @@ pnpm dev                                           # SPA + Worker on http://loca
 | `MEDIA` | R2 `vidflare-media` | ✅ |
 | `EVENTS` | Queue `stream-events` (producer + consumer) | ✅ |
 | `VIDEO_STATS` | Durable Object `VideoStats` (SQLite) | ✅ |
+| `triggers.crons` | Nightly reconcile (`lib/reconcile.ts`) | ✅ never fires on its own; run it with `curl "http://localhost:5173/cdn-cgi/handler/scheduled?cron=0+3+*+*+*"`. It asks the Stream API (the shared library, like every local Stream call) about this D1's videos stuck for over an hour, so the seeded demo rows with fake uids turn `error`. |
 
-Tests (`pnpm test`) use the same bindings, isolated per test, with migrations applied automatically.
+Rate limiters (`ratelimits` in `wrangler.jsonc`) run locally too, but only the per-account login limit applies: per-IP limits need the `CF-Connecting-IP` header, which only Cloudflare sets.
+
+Tests (`pnpm test`) run in the Workers runtime with the same bindings, with migrations applied automatically. D1 rows persist between the tests of one file, so tests use unique ids, emails and handles.
 
 ## What points at stage, and how
 
@@ -37,6 +40,21 @@ Tests (`pnpm test`) use the same bindings, isolated per test, with migrations ap
 | Sentry (optional) | Hosted service | Off by default: `SENTRY_DSN` (Worker, `.dev.vars`) and `VITE_SENTRY_DSN` (client, `apps/web/.env.local`) are empty. Set them to the stage DSN to test reporting; events are tagged `environment: local`. Source maps are never built locally. See [SentrySetup.md](SentrySetup.md). |
 
 Stream isn't a Worker binding (the Worker calls its REST API with a token), so it's switched by credentials, not by `remote: true`.
+
+## End-to-end tests
+
+`apps/web/e2e/journey.spec.ts` (Playwright) walks the core journey through the real UI: sign up → upload → watch → like → comment.
+
+```sh
+pnpm --filter web exec playwright install chromium    # once per machine / Playwright version
+pnpm test:e2e                                         # local: starts `pnpm dev` if it isn't running
+E2E_BASE_URL=https://<stage host> pnpm test:e2e       # stage
+```
+
+- **What it creates:** a fresh account (`e2e…@example.com`, kept: accounts can't be deleted in the MVP) and one real Stream video from `e2e/fixtures/clip.mp4` (5 s), which it deletes at the end, pass or fail.
+- **Encoding:** on stage the webhook marks the video ready; locally no webhook arrives, so the test clicks **Re-check** in the studio until it's ready (harmless on stage). It allows Stream up to 4 minutes.
+- **Turnstile:** locally the test keys always pass. On stage the real widget runs, and it may challenge a headless browser; if the run stops at "the Turnstile widget did not pass", that's why.
+- Failures keep a trace, screenshot and video in `apps/web/test-results/` (open the trace with `pnpm --filter web exec playwright show-trace <trace.zip>`).
 
 ## Rules
 
